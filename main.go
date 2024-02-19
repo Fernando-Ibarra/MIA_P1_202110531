@@ -126,10 +126,10 @@ func functions(token string, tks []string) {
 			counterDisk++
 		} else if Comands.Compare(token, "RMDISK") {
 			fmt.Println(">>>>>>>>>>>>>>>>>>>> FUNCIÓN RMDISK <<<<<<<<<<<<<<<<<<<<")
-			//
+			Comands.RMDISK(tks)
 		} else if Comands.Compare(token, "FDISK") {
 			fmt.Println(">>>>>>>>>>>>>>>>>>>> FUNCIÓN FDISK <<<<<<<<<<<<<<<<<<<<")
-			//
+			Comands.DataFDISK(tks)
 		} else if Comands.Compare(token, "MOUNT") {
 			fmt.Println(">>>>>>>>>>>>>>>>>>>> FUNCIÓN MOUNT <<<<<<<<<<<<<<<<<<<<")
 			//

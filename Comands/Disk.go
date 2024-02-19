@@ -17,7 +17,7 @@ func DataMKDISK(tokens []string, counterDisks int) {
 	fit := ""  // optional
 	unit := "" // optional
 	var nameDisk string = string(getNameDisk(counterDisks)) + ".dsk"
-	path := "/home/fernando/Documentos/Universidad/LaboratorioArchivos/Proyectos/Discos/MIA/P1/" + nameDisk // default
+	path := "/home/fernando/Documentos/Universidad/LaboratorioArchivos/Proyectos/Proyecto1/MIA/P1/" + nameDisk // default
 	error_ := false
 	for i := 0; i < len(tokens); i++ {
 		token := tokens[i]
@@ -151,4 +151,57 @@ func getNameDisk(number int) string {
 		return letter
 	}
 	return ""
+}
+
+func RMDISK(tokens []string) {
+	if len(tokens) > 1 {
+		Error("RMDISK", "Solo se acepta el párametro driveletter")
+		return
+	}
+	driveLetter := ""
+	nameDisk := ""
+	error_ := false
+	for i := 0; i < len(tokens); i++ {
+		token := tokens[i]
+		tk := strings.Split(token, "=")
+		if Compare(tk[0], "driveletter") {
+			if driveLetter == "" {
+				driveLetter = "/home/fernando/Documentos/Universidad/LaboratorioArchivos/Proyectos/Proyecto1/MIA/P1/" + tk[1] + ".dsk"
+				nameDisk = tk[1]
+			} else {
+				Error("RMDISK", "Parámetro driveletter repetido en el comando: "+tk[0])
+			}
+		} else {
+			Error("RMDISK", "No se esperaba el parámetro "+tk[0])
+			error_ = false
+			return
+		}
+	}
+	if error_ {
+		return
+	}
+	if driveLetter == "" {
+		Error("RMDISK", "Se requiere el parámetro path")
+		return
+	} else {
+		if !ExistedFile(driveLetter) {
+			Error("RMDISK", "No se encontró el disco en la ruta indicada")
+			return
+		}
+		if !strings.HasSuffix(driveLetter, "dsk") {
+			Error("RMDISK", "Extensión de archivo no válida")
+			return
+		}
+		if Confirm("¿Desea eliminar el disco " + nameDisk + ".dsk ?") {
+			err := os.Remove(driveLetter)
+			if err != nil {
+				Error("RMDISK", "Error al intentar eliminar el archivo.")
+				return
+			}
+			Message("RMDISK", "Disco ubicado en "+driveLetter+", ha sido eliminado correctamente")
+			return
+		} else {
+			Message("RMDISK", "Eliminación del disco "+driveLetter+", cancelada exitosamente.")
+		}
+	}
 }
