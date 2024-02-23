@@ -64,7 +64,7 @@ func readDisk(path string) *Structs.MBR {
 	file, err := os.Open(strings.ReplaceAll(path, "\"", ""))
 	defer file.Close()
 	if err != nil {
-		Error("FDISK", "Error al abrir el archivo")
+		Error("FDISK", "Error al abrir el archivo A")
 		return nil
 	}
 	file.Seek(0, 0)
@@ -72,7 +72,8 @@ func readDisk(path string) *Structs.MBR {
 	buffer := bytes.NewBuffer(data)
 	err_ := binary.Read(buffer, binary.BigEndian, &mbr)
 	if err_ != nil {
-		Error("FDISK", "Error al leer el archivo")
+		Error("FDISK", "Error al leer el archivo B")
+		return nil
 	}
 	var mDir *Structs.MBR = &mbr
 	return mDir
