@@ -363,7 +363,7 @@ func Logic(p Structs.Partition, e Structs.Partition, d string, n string) {
 	file.Close()
 	for {
 		size += int64(unsafe.Sizeof(Structs.EBR{})) + tmp.Part_s
-		if (tmp.Part_s == 0 && tmp.Part_next == -1) || (tmp.Part_s == 0 && tmp.Part_next == 0) {
+		if (tmp.Part_s == int64(0) && tmp.Part_next == int64(-1)) || (tmp.Part_s == int64(0) && tmp.Part_next == int64(0)) {
 			file, err = os.OpenFile(strings.ReplaceAll(d, "\"", ""), os.O_WRONLY, os.ModeAppend)
 			logic.Part_start = tmp.Part_start
 			logic.Part_next = logic.Part_start + logic.Part_s + int64(unsafe.Sizeof(Structs.EBR{}))

@@ -25,17 +25,17 @@ type PartitionMounted struct {
 
 var DiskMount [99]DiskMounted
 
-var alphabet = []byte{'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'}
-
 func DataMount(tokens []string) {
 	driveLetter := ""
 	name := ""
+	letter := ""
 	for i := 0; i < len(tokens); i++ {
 		current := tokens[i]
 		command := strings.Split(current, "=")
 		if Compare(command[0], "name") {
 			name = command[1]
 		} else if Compare(command[0], "driveletter") {
+			letter = command[1]
 			driveLetter = "/home/fernando/Documentos/Universidad/LaboratorioArchivos/Proyectos/Proyecto1/MIA/P1/" + command[1] + ".dsk"
 		}
 	}
@@ -43,11 +43,11 @@ func DataMount(tokens []string) {
 		Error("MOUNT", "El comando MOUNT requiere parámetros obligatorios")
 		return
 	}
-	mount(driveLetter, name)
+	mount(driveLetter, name, letter)
 	listMount()
 }
 
-func mount(d string, n string) {
+func mount(d string, n string, l string) {
 	file, error_ := os.Open(strings.ReplaceAll(d, "\"", ""))
 	if error_ != nil {
 		Error("MOUNT", "No se ha podido abrir el archivo")
@@ -120,9 +120,9 @@ func mount(d string, n string) {
 				}
 				if DiskMount[i].Partitions[j].State == 0 {
 					DiskMount[i].Partitions[j].State = 1
-					DiskMount[i].Partitions[j].Letter = alphabet[j]
+					DiskMount[i].Partitions[j].Letter = l[0]
 					copy(DiskMount[i].Partitions[j].Name[:], n)
-					res := strconv.Itoa(i+1) + string(alphabet[j])
+					res := l + strconv.Itoa(j+1)
 					Message("MOUNT", "Se ha realizado correctamente el mount -id="+res+"31")
 					return
 				}
@@ -136,9 +136,9 @@ func mount(d string, n string) {
 			for j := 0; j < 26; j++ {
 				if DiskMount[i].Partitions[j].State == 0 {
 					DiskMount[i].Partitions[j].State = 1
-					DiskMount[i].Partitions[j].Letter = alphabet[j]
+					DiskMount[i].Partitions[j].Letter = l[0]
 					copy(DiskMount[i].Partitions[j].Name[:], n)
-					res := strconv.Itoa(i+1) + string(alphabet[j])
+					res := l + strconv.Itoa(j+1)
 					Message("MOUNT", "Se ha realizado correctamente el mount -id="+res+"31")
 					return
 				}
@@ -158,7 +158,7 @@ func listMount() {
 						name += string(DiskMount[i].Partitions[j].Name[k])
 					}
 				}
-				fmt.Println("\t id=" + strconv.Itoa(i+1) + string(alphabet[j]) + "31, Nombre: " + name)
+				fmt.Println("\t id=" + string(DiskMount[i].Partitions[j].Letter) + strconv.Itoa(i+1) + "31, Nombre: " + name)
 			}
 		}
 	}
