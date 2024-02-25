@@ -25,10 +25,10 @@ func DataFDISK(tokens []string) {
 	unit := "k"
 	driveLetter := ""
 	tipo := "P"
-	fit := "WF"
+	fit := "w"
 	name := ""
-	// add := ""
-	// deleteP := ""
+	add := ""
+	deleteP := ""
 	for i := 0; i < len(tokens); i++ {
 		token := tokens[i]
 		tk := strings.Split(token, "=")
@@ -45,16 +45,26 @@ func DataFDISK(tokens []string) {
 		} else if Compare(tk[0], "name") {
 			name = tk[1]
 		} else if Compare(tk[0], "delete") {
-			// deleteP = tk[1]
+			deleteP = tk[1]
 		} else if Compare(tk[0], "add") {
-			// add = tk[1]
+			add = tk[1]
 		}
 	}
-	if size == "" || driveLetter == "" || name == "" {
+
+	if driveLetter == "" || name == "" {
 		Error("FDISK", "EL comando FDISK necesita parámetros obligatorios")
 		return
 	} else {
-		generatePartition(size, unit, driveLetter, tipo, fit, name)
+		if size == "" && deleteP == "" && add == "" {
+			Error("FDISK", "EL comando FDISK necesita parámetros obligatorios")
+			return
+		} else if size != "" && deleteP == "" && add == "" {
+			generatePartition(size, unit, driveLetter, tipo, fit, name)
+		} else if size == "" && deleteP != "" && add == "" {
+			// deletePartition(deleteP, driveLetter, name)
+		} else if size == "" && deleteP == "" && add != "" {
+			// agregar
+		}
 	}
 }
 
@@ -83,15 +93,17 @@ func generatePartition(s string, u string, d string, t string, f string, n strin
 		Error("FDISK", "Type no contiene los valores esperados")
 		return
 	}
-	if !(Compare(f, "bf") || Compare(f, "ff") || Compare(f, "wf")) {
+	if !(Compare(f, "b") || Compare(f, "f") || Compare(f, "w")) {
 		Error("FDISK", "Fit no contiene los valores esperados")
 	}
+
 	mbr := readDisk(d)
 	partitions := GetPartitions(*mbr)
 	var between []Transition
 
 	used := 0
 	ext := 0
+	logic := 0
 	c := 0
 
 	base := int(unsafe.Sizeof(Structs.MBR{}))
@@ -139,12 +151,22 @@ func generatePartition(s string, u string, d string, t string, f string, n strin
 		Error("FDISK", "El nombre "+n+", ya está en uso")
 		return
 	}
+
+	if Compare(t, "l") {
+		logic++
+	}
+
 	temporal := Structs.NewPartition()
 	temporal.Part_status = '1'
 	temporal.Part_s = int64(i)
 	temporal.Part_type = strings.ToUpper(t)[0]
 	temporal.Part_fit = strings.ToUpper(f)[0]
 	copy(temporal.Part_name[:], n)
+	temporal.Part_correlative = int64(used + ext + logic + 1)
+	partNames := strings.Split(d, "/")
+	nameDisk := strings.Split(partNames[len(partNames)-1], ".")
+	idPartition := nameDisk[0] + strconv.Itoa(used+ext+logic+1) + "31"
+	copy(temporal.Part_id[:], idPartition)
 
 	if Compare(t, "l") {
 		Logic(temporal, extended, d, n)
@@ -182,6 +204,29 @@ func generatePartition(s string, u string, d string, t string, f string, n strin
 	Message("FDISK", "Partición Primaria: "+n+", creada correctamente")
 }
 
+func deletePartition(de string, d string, n string) {
+	if !Compare(de, "full") {
+		Error("FDISK", "Delete no contiene los valores esperados")
+		return
+	}
+
+	mbr := readDisk(d)
+	// partitions := GetPartitions(*mbr)
+	comeBack := SearchPartitions(*mbr, n, d)
+	if comeBack == nil {
+		Error("FDISK", "La partition con nombre "+n+", no existe")
+		return
+	}
+	// var empty int8 = 0
+	// s1 := &empty
+	// size := comeBack.Part_s
+	file, err := os.OpenFile(strings.ReplaceAll(d, "\"", ""), os.O_WRONLY, os.ModeAppend)
+	if err != nil {
+		Error("FDISK", "Error al abrir el archivo")
+	}
+	file.Seek(comeBack.Part_start, 0)
+}
+
 func GetPartitions(disk Structs.MBR) []Structs.Partition {
 	var v []Structs.Partition
 	v = append(v, disk.Mbr_partitions_1)
@@ -202,7 +247,7 @@ func SearchPartitions(mbr Structs.MBR, name string, path string) *Structs.Partit
 	extended := Structs.NewPartition()
 	for i := 0; i < len(partitions); i++ {
 		partition := partitions[i]
-		if partition.Part_status == "1"[0] {
+		if partition.Part_status == '1' {
 			nameP := ""
 			for j := 0; j < len(partition.Part_name); j++ {
 				if partition.Part_name[j] != 0 {
@@ -307,11 +352,11 @@ func Logic(p Structs.Partition, e Structs.Partition, d string, n string) {
 	buffer := bytes.NewBuffer(data)
 	err_ := binary.Read(buffer, binary.BigEndian, &tmp)
 	if err_ != nil {
-		Error("FDISK", "Error al abrir el archivo del disco")
+		Error("FDISK", "Error al leer el archivo")
 		return
 	}
 	if err != nil {
-		Error("FDISK", "Error al abrir el archivo del disco")
+		Error("FDISK", "Error al abrir el archivo del disco 3")
 		return
 	}
 	var size int64 = 0
@@ -319,48 +364,48 @@ func Logic(p Structs.Partition, e Structs.Partition, d string, n string) {
 	for {
 		size += int64(unsafe.Sizeof(Structs.EBR{})) + tmp.Part_s
 		if (tmp.Part_s == 0 && tmp.Part_next == -1) || (tmp.Part_s == 0 && tmp.Part_next == 0) {
-			file2, _ := os.OpenFile(strings.ReplaceAll(d, "\"", ""), os.O_WRONLY, os.ModeAppend)
+			file, err = os.OpenFile(strings.ReplaceAll(d, "\"", ""), os.O_WRONLY, os.ModeAppend)
 			logic.Part_start = tmp.Part_start
 			logic.Part_next = logic.Part_start + logic.Part_s + int64(unsafe.Sizeof(Structs.EBR{}))
 			if (e.Part_s - size) <= logic.Part_s {
 				Error("FDISK", "No hay espacio para más particiones lógicas")
 				return
 			}
-			file2.Seek(logic.Part_start, 0)
+			file.Seek(logic.Part_start, 0)
 
 			var binary2 bytes.Buffer
 			binary.Write(&binary2, binary.BigEndian, logic)
-			WrittingBytes(file2, binary2.Bytes())
+			WrittingBytes(file, binary2.Bytes())
 			nameL := ""
 			for j := 0; j < len(p.Part_name); j++ {
 				nameL += string(p.Part_name[j])
 			}
-			file2.Seek(logic.Part_next, 0)
+			file.Seek(logic.Part_next, 0)
 			addLogic := Structs.NewEBR()
 			addLogic.Part_mount = '0'
 			addLogic.Part_next = -1
 			addLogic.Part_start = logic.Part_next
 
-			file2.Seek(addLogic.Part_start, 0)
+			file.Seek(addLogic.Part_start, 0)
 
 			var binary3 bytes.Buffer
 			binary.Write(&binary3, binary.BigEndian, addLogic)
-			WrittingBytes(file2, binary3.Bytes())
+			WrittingBytes(file, binary3.Bytes())
 
 			Message("FDISK", "Partición Lógica: "+n+", creada correctamente")
-			file2.Close()
+			file.Close()
 			return
 		}
-		file3, err2 := os.Open(strings.ReplaceAll(d, "\"", ""))
-		if err2 != nil {
-			Error("FDISK", "Error al abrir el archivo del disco")
+		file, err = os.Open(strings.ReplaceAll(d, "\"", ""))
+		if err != nil {
+			Error("FDISK", "Error al abrir el archivo del disco 4")
 			return
 		}
-		file3.Seek(tmp.Part_next, 0)
-		data2 := readBytes(file3, int(unsafe.Sizeof(Structs.EBR{})))
-		buffer3 := bytes.NewBuffer(data2)
-		err3 := binary.Read(buffer3, binary.BigEndian, &tmp)
-		if err3 != nil {
+		file.Seek(tmp.Part_next, 0)
+		data = readBytes(file, int(unsafe.Sizeof(Structs.EBR{})))
+		buffer = bytes.NewBuffer(data)
+		err_ = binary.Read(buffer, binary.BigEndian, &tmp)
+		if err_ != nil {
 			Error("FDISK", "Error al leer el archivo")
 			return
 		}
@@ -384,12 +429,12 @@ func fitF(mbr Structs.MBR, p Structs.Partition, t []Transition, ps []Structs.Par
 				continue
 			}
 
-			if Compare(string(mbr.Dsk_fit[0]), "FF") {
+			if Compare(string(mbr.Dsk_fit[0]), "f") {
 				if int64(use.before) >= p.Part_s || int64(use.after) >= p.Part_s {
 					break
 				}
 				use = tr
-			} else if Compare(string(mbr.Dsk_fit[0]), "BF") {
+			} else if Compare(string(mbr.Dsk_fit[0]), "b") {
 				if int64(tr.before) >= p.Part_s || int64(use.after) < p.Part_s {
 					use = tr
 				} else {
@@ -405,7 +450,7 @@ func fitF(mbr Structs.MBR, p Structs.Partition, t []Transition, ps []Structs.Par
 						use = tr
 					}
 				}
-			} else if Compare(string(mbr.Dsk_fit[0]), "WF") {
+			} else if Compare(string(mbr.Dsk_fit[0]), "w") {
 				if int64(use.before) >= p.Part_s || int64(use.after) < p.Part_s {
 					use = tr
 				} else {
@@ -426,7 +471,7 @@ func fitF(mbr Structs.MBR, p Structs.Partition, t []Transition, ps []Structs.Par
 			c++
 		}
 		if use.before >= int(p.Part_s) || use.after >= int(p.Part_s) {
-			if Compare(string(mbr.Dsk_fit[0]), "FF") {
+			if Compare(string(mbr.Dsk_fit[0]), "f") {
 				if use.before >= int(p.Part_s) {
 					p.Part_start = int64(use.start - use.before)
 					startValue = int(p.Part_start)
@@ -434,7 +479,7 @@ func fitF(mbr Structs.MBR, p Structs.Partition, t []Transition, ps []Structs.Par
 					p.Part_s = int64(use.end)
 					startValue = int(p.Part_s)
 				}
-			} else if Compare(string(mbr.Dsk_fit[0]), "BF") {
+			} else if Compare(string(mbr.Dsk_fit[0]), "b") {
 				b1 := use.before - int(p.Part_s)
 				a1 := use.after - int(p.Part_s)
 
@@ -445,7 +490,7 @@ func fitF(mbr Structs.MBR, p Structs.Partition, t []Transition, ps []Structs.Par
 					p.Part_start = int64(use.end)
 					startValue = int(p.Part_start)
 				}
-			} else if Compare(string(mbr.Dsk_fit[0]), "WF") {
+			} else if Compare(string(mbr.Dsk_fit[0]), "w") {
 				b1 := use.before - int(p.Part_s)
 				a1 := use.after - int(p.Part_s)
 

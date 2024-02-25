@@ -50,7 +50,7 @@ func DataMKDISK(tokens []string, counterDisks int) {
 		}
 	}
 	if fit == "" {
-		fit = "FF"
+		fit = "F"
 	}
 
 	if unit == "" {
@@ -64,7 +64,7 @@ func DataMKDISK(tokens []string, counterDisks int) {
 	if size == "" {
 		Error("MKDISK", "Se requiere párametro Size para este comando de forma obligatoria")
 		return
-	} else if !Compare(fit, "BF") && !Compare(fit, "FF") && !Compare(fit, "WF") {
+	} else if !Compare(fit, "B") && !Compare(fit, "F") && !Compare(fit, "W") {
 		Error("MKDISK", "Se obtuvo un valor de fit no esperado")
 		return
 	} else if !Compare(unit, "k") && !Compare(unit, "m") {

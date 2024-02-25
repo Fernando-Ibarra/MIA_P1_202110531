@@ -132,7 +132,7 @@ func functions(token string, tks []string) {
 			Comands.DataFDISK(tks)
 		} else if Comands.Compare(token, "MOUNT") {
 			fmt.Println(">>>>>>>>>>>>>>>>>>>> FUNCIÓN MOUNT <<<<<<<<<<<<<<<<<<<<")
-			//
+			Comands.DataMount(tks)
 		} else if Comands.Compare(token, "MKFS") {
 			fmt.Println(">>>>>>>>>>>>>>>>>>>> FUNCIÓN MKFS <<<<<<<<<<<<<<<<<<<<")
 			//
