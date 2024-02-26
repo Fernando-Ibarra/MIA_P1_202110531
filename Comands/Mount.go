@@ -158,7 +158,7 @@ func listMount() {
 						name += string(DiskMount[i].Partitions[j].Name[k])
 					}
 				}
-				fmt.Println("\t id=" + string(DiskMount[i].Partitions[j].Letter) + strconv.Itoa(i+1) + "31, Nombre: " + name)
+				fmt.Println("\t id=" + string(DiskMount[i].Partitions[j].Letter) + strconv.Itoa(j+1) + "31, Nombre: " + name)
 			}
 		}
 	}

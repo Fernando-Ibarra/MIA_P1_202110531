@@ -188,7 +188,7 @@ func generatePartition(s string, u string, d string, t string, f string, n strin
 	WrittingBytes(file, binary2.Bytes())
 	if Compare(t, "E") {
 		ebr := Structs.NewEBR()
-		ebr.Part_mount = '0'
+		ebr.Part_mount = 0
 		ebr.Part_start = int64(startValue)
 		ebr.Part_s = 0
 		ebr.Part_next = -1
@@ -247,7 +247,7 @@ func SearchPartitions(mbr Structs.MBR, name string, path string) *Structs.Partit
 	extended := Structs.NewPartition()
 	for i := 0; i < len(partitions); i++ {
 		partition := partitions[i]
-		if partition.Part_status == '1' {
+		if partition.Part_status == "1"[0] {
 			nameP := ""
 			for j := 0; j < len(partition.Part_name); j++ {
 				if partition.Part_name[j] != 0 {
@@ -343,7 +343,7 @@ func Logic(p Structs.Partition, e Structs.Partition, d string, n string) {
 	file.Seek(0, 0)
 
 	tmp := Structs.NewEBR()
-	tmp.Part_mount = 0
+	tmp.Part_mount = '0'
 	tmp.Part_s = 0
 	tmp.Part_next = -1
 	file.Seek(e.Part_start, 0)
@@ -363,7 +363,7 @@ func Logic(p Structs.Partition, e Structs.Partition, d string, n string) {
 	file.Close()
 	for {
 		size += int64(unsafe.Sizeof(Structs.EBR{})) + tmp.Part_s
-		if (tmp.Part_s == int64(0) && tmp.Part_next == int64(-1)) || (tmp.Part_s == int64(0) && tmp.Part_next == int64(0)) {
+		if (int(tmp.Part_s) == 0 && int(tmp.Part_next) == -1) || (int(tmp.Part_s) == 0 && int(tmp.Part_next) == 0) {
 			file, err = os.OpenFile(strings.ReplaceAll(d, "\"", ""), os.O_WRONLY, os.ModeAppend)
 			logic.Part_start = tmp.Part_start
 			logic.Part_next = logic.Part_start + logic.Part_s + int64(unsafe.Sizeof(Structs.EBR{}))
@@ -476,7 +476,7 @@ func fitF(mbr Structs.MBR, p Structs.Partition, t []Transition, ps []Structs.Par
 					p.Part_start = int64(use.start - use.before)
 					startValue = int(p.Part_start)
 				} else {
-					p.Part_s = int64(use.end)
+					p.Part_start = int64(use.end)
 					startValue = int(p.Part_s)
 				}
 			} else if Compare(string(mbr.Dsk_fit[0]), "b") {

@@ -138,7 +138,7 @@ func makeFile(s string, f string, u string, path string) {
 	disk.Mbr_tamano = num + 1
 
 	var binar3 bytes.Buffer
-	binary.Write(&binar3, binary.BigEndian, &disk)
+	binary.Write(&binar3, binary.BigEndian, disk)
 	WrittingBytes(file, binar3.Bytes())
 	file.Close()
 	nameDisk := strings.Split(path, "/")
