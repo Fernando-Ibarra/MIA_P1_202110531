@@ -188,7 +188,7 @@ func generatePartition(s string, u string, d string, t string, f string, n strin
 	WrittingBytes(file, binary2.Bytes())
 	if Compare(t, "E") {
 		ebr := Structs.NewEBR()
-		ebr.Part_mount = 0
+		ebr.Part_mount = '0'
 		ebr.Part_start = int64(startValue)
 		ebr.Part_s = 0
 		ebr.Part_next = -1
@@ -343,7 +343,7 @@ func Logic(p Structs.Partition, e Structs.Partition, d string, n string) {
 	file.Seek(0, 0)
 
 	tmp := Structs.NewEBR()
-	tmp.Part_mount = '0'
+	tmp.Part_mount = 0
 	tmp.Part_s = 0
 	tmp.Part_next = -1
 	file.Seek(e.Part_start, 0)
@@ -363,7 +363,7 @@ func Logic(p Structs.Partition, e Structs.Partition, d string, n string) {
 	file.Close()
 	for {
 		size += int64(unsafe.Sizeof(Structs.EBR{})) + tmp.Part_s
-		if (int(tmp.Part_s) == 0 && int(tmp.Part_next) == -1) || (int(tmp.Part_s) == 0 && int(tmp.Part_next) == 0) {
+		if (tmp.Part_s == 0 && tmp.Part_next == -1) || (tmp.Part_s == 0 && tmp.Part_next == 0) {
 			file, err = os.OpenFile(strings.ReplaceAll(d, "\"", ""), os.O_WRONLY, os.ModeAppend)
 			logic.Part_start = tmp.Part_start
 			logic.Part_next = logic.Part_start + logic.Part_s + int64(unsafe.Sizeof(Structs.EBR{}))
@@ -494,7 +494,7 @@ func fitF(mbr Structs.MBR, p Structs.Partition, t []Transition, ps []Structs.Par
 				b1 := use.before - int(p.Part_s)
 				a1 := use.after - int(p.Part_s)
 
-				if (use.before >= int(p.Part_s) && b1 > a1) || use.after < int(p.Part_s) {
+				if (use.before >= int(p.Part_s) && b1 > a1) || use.after < int(p.Part_start) {
 					p.Part_start = int64(use.start - use.before)
 					startValue = int(p.Part_start)
 				} else {

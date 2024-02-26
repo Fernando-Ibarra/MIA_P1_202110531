@@ -48,7 +48,7 @@ func DataMount(tokens []string) {
 }
 
 func mount(d string, n string, l string) {
-	file, error_ := os.Open(strings.ReplaceAll(d, "\"", ""))
+	file, error_ := os.Open(d)
 	if error_ != nil {
 		Error("MOUNT", "No se ha podido abrir el archivo")
 		return
@@ -70,7 +70,7 @@ func mount(d string, n string, l string) {
 
 	partition := SearchPartitions(disk, n, d)
 	if partition == nil {
-		Error("MOUNT", "ERROR")
+		Error("MOUNT", "PARTICIÓN NO ENCONTRADA")
 		return
 	}
 	if partition.Part_type == 'E' || partition.Part_type == 'L' {
