@@ -477,7 +477,7 @@ func fitF(mbr Structs.MBR, p Structs.Partition, t []Transition, ps []Structs.Par
 					startValue = int(p.Part_start)
 				} else {
 					p.Part_start = int64(use.end)
-					startValue = int(p.Part_s)
+					startValue = int(p.Part_start)
 				}
 			} else if Compare(string(mbr.Dsk_fit[0]), "b") {
 				b1 := use.before - int(p.Part_s)
