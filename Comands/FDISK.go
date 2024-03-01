@@ -163,11 +163,6 @@ func generatePartition(s string, u string, d string, t string, f string, n strin
 	temporal.Part_fit = strings.ToUpper(f)[0]
 	copy(temporal.Part_name[:], n)
 	temporal.Part_correlative = int64(used + ext + logic + 1)
-	partNames := strings.Split(d, "/")
-	nameDisk := strings.Split(partNames[len(partNames)-1], ".")
-	idPartition := nameDisk[0] + strconv.Itoa(used+ext+logic+1) + "31"
-	copy(temporal.Part_id[:], idPartition)
-
 	if Compare(t, "l") {
 		Logic(temporal, extended, d, n)
 		return

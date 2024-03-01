@@ -11,6 +11,8 @@ import (
 	"unsafe"
 )
 
+var DiskMount [99]DiskMounted
+
 type DiskMounted struct {
 	Path       [150]byte
 	State      byte
@@ -22,8 +24,6 @@ type PartitionMounted struct {
 	State  byte
 	Name   [20]byte
 }
-
-var DiskMount [99]DiskMounted
 
 func DataMount(tokens []string) {
 	driveLetter := ""
@@ -69,10 +69,6 @@ func mount(d string, n string, l string) {
 	}
 
 	partition := SearchPartitions(disk, n, d)
-	if partition == nil {
-		Error("MOUNT", "PARTICIÓN NO ENCONTRADA")
-		return
-	}
 	if partition.Part_type == 'E' || partition.Part_type == 'L' {
 		var name [16]byte
 		copy(name[:], n)
@@ -122,8 +118,8 @@ func mount(d string, n string, l string) {
 					DiskMount[i].Partitions[j].State = 1
 					DiskMount[i].Partitions[j].Letter = l[0]
 					copy(DiskMount[i].Partitions[j].Name[:], n)
-					res := l + strconv.Itoa(j+1)
-					Message("MOUNT", "Se ha realizado correctamente el mount -id="+res+"31")
+					res := l + strconv.Itoa(i+1) + strconv.Itoa(31)
+					Message("MOUNT", "Se ha realizado correctamente el mount -id="+res)
 					return
 				}
 			}
@@ -138,13 +134,63 @@ func mount(d string, n string, l string) {
 					DiskMount[i].Partitions[j].State = 1
 					DiskMount[i].Partitions[j].Letter = l[0]
 					copy(DiskMount[i].Partitions[j].Name[:], n)
-					res := l + strconv.Itoa(j+1)
-					Message("MOUNT", "Se ha realizado correctamente el mount -id="+res+"31")
+					res := l + strconv.Itoa(i+1) + strconv.Itoa(31)
+					Message("MOUNT", "Se ha realizado correctamente el mount -id="+res)
 					return
 				}
 			}
 		}
 	}
+}
+
+func GetMount(comand string, id string, p *string) Structs.Partition {
+	if !(id[2] == '3' && id[3] == '1') {
+		Error(comand, "El primer identificador no es válido")
+		return Structs.Partition{}
+	}
+	letter := id[0]
+	j, _ := strconv.Atoi(string(id[1] - 1))
+	if j < 0 {
+		Error(comand, "El primer identificador no es válido")
+		return Structs.Partition{}
+	}
+	for i := 0; i < 99; i++ {
+		if DiskMount[i].Partitions[j].State == 1 {
+			if DiskMount[i].Partitions[j].Letter == letter {
+				path := ""
+				for k := 0; k < len(DiskMount[i].Path); k++ {
+					if DiskMount[i].Path[k] != 0 {
+						path += string(DiskMount[i].Path[k])
+					}
+				}
+				file, erro := os.Open(strings.ReplaceAll(path, "\"", ""))
+				if erro != nil {
+					Error(comand, "No se encontro el disco")
+					return Structs.Partition{}
+				}
+				disk := Structs.NewMBR()
+				file.Seek(0, 0)
+				data := readBytes(file, int(unsafe.Sizeof(Structs.MBR{})))
+				buffer := bytes.NewBuffer(data)
+				err_ := binary.Read(buffer, binary.BigEndian, &disk)
+				if err_ != nil {
+					Error("FDISK", "Error al leer el archivo")
+					return Structs.Partition{}
+				}
+				file.Close()
+
+				partitionName := ""
+				for k := 0; k < len(DiskMount[i].Partitions[j].Name); k++ {
+					if DiskMount[i].Partitions[j].Name[k] != 0 {
+						partitionName += string(DiskMount[i].Partitions[j].Name[k])
+					}
+				}
+				*p = path
+				return *SearchPartitions(disk, partitionName, path)
+			}
+		}
+	}
+	return Structs.Partition{}
 }
 
 func listMount() {

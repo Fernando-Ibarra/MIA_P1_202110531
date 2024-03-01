@@ -11,6 +11,8 @@ import (
 
 var counterDisk = 1
 
+var logued = false
+
 func main() {
 	for true {
 		fmt.Println("********************* INGRESE UN COMANDO *********************")
@@ -133,22 +135,28 @@ func functions(token string, tks []string) {
 		} else if Comands.Compare(token, "MOUNT") {
 			fmt.Println(">>>>>>>>>>>>>>>>>>>> FUNCIÓN MOUNT <<<<<<<<<<<<<<<<<<<<")
 			Comands.DataMount(tks)
+		} else if Comands.Compare(token, "UNMOUNT") {
+			fmt.Println(">>>>>>>>>>>>>>>>>>>> FUNCIÓN UNMOUNT <<<<<<<<<<<<<<<<<<<<")
+			Comands.DataUnMount(tks)
 		} else if Comands.Compare(token, "MKFS") {
 			fmt.Println(">>>>>>>>>>>>>>>>>>>> FUNCIÓN MKFS <<<<<<<<<<<<<<<<<<<<")
-			//
-		} else if Comands.Compare(token, "REP") {
-			fmt.Println(">>>>>>>>>>>>>>>>>>>> FUNCIÓN REP <<<<<<<<<<<<<<<<<<<<")
-			//
+			Comands.DataMkfs(tks)
 		} else if Comands.Compare(token, "LOGIN") {
 			fmt.Println(">>>>>>>>>>>>>>>>>>>> FUNCIÓN LOGIN <<<<<<<<<<<<<<<<<<<<")
-			/*
-				if logued {
-					Comands.Error("LOGIN", "Ya hay un usuario en linea.")
-					return
-				} else {
-					logued =
-				}
-			*/
+			if logued {
+				Comands.Error("LOGIN", "Ya hay un usuario en linea.")
+				return
+			} else {
+				logued = Comands.DataUserLogin(tks)
+			}
+		} else if Comands.Compare(token, "LOGOUT") {
+			fmt.Println(">>>>>>>>>>>>>>>>>>>> FUNCIÓN LOG OUT <<<<<<<<<<<<<<<<<<<<")
+			if !logued {
+				Comands.Error("LOGOUT", "Aún no se ha iniciado sesión")
+				return
+			} else {
+				logued = Comands.LogOut()
+			}
 		} else {
 			Comands.Error("ANALIZADOR", "NO se reconoce el comando \" "+token+"\" ")
 		}
