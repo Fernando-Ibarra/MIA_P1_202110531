@@ -73,7 +73,7 @@ func mkgrp(n string) {
 
 	var fb Structs.FilesBlocks
 	txt := ""
-	for block := 0; block < 16; block++ {
+	for block := 1; block < 16; block++ {
 		if inode.I_block[block-1] == -1 {
 			break
 		}
@@ -112,13 +112,15 @@ func mkgrp(n string) {
 	tam := len(txt)
 	var cadS []string
 	if tam > 64 {
-		aux := ""
-		for i := 0; i < 64; i++ {
-			aux += string(txt[i])
+		for tam > 64 {
+			aux := ""
+			for i := 0; i < 64; i++ {
+				aux += string(txt[i])
+			}
+			cadS = append(cadS, aux)
+			txt = strings.ReplaceAll(txt, aux, "")
+			tam = len(txt)
 		}
-		cadS = append(cadS, aux)
-		txt = strings.ReplaceAll(txt, aux, "")
-		tam = len(txt)
 		if tam < 64 && tam != 0 {
 			cadS = append(cadS, txt)
 		}
@@ -209,7 +211,7 @@ func rmgrp(n string) {
 
 	var fb Structs.FilesBlocks
 	txt := ""
-	for block := 0; block < 16; block++ {
+	for block := 1; block < 16; block++ {
 		if inode.I_block[block-1] == -1 {
 			break
 		}
@@ -236,7 +238,7 @@ func rmgrp(n string) {
 		if (line[2] == 'G' || line[2] == 'g') && line[0] != 0 {
 			in := strings.Split(line, ",")
 			if in[2] == n {
-				exists = false
+				exists = true
 				aux += strconv.Itoa(0) + ",G," + in[2] + "\n"
 				continue
 			}

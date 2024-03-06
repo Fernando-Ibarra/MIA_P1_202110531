@@ -126,7 +126,7 @@ func mkuser(user string, pass string, grp string) {
 	}
 
 	c := 0
-	for i := 0; i < len(vctr); i++ {
+	for i := 0; i < len(vctr)-1; i++ {
 		line := vctr[i]
 		if line[2] == 'U' || line[2] == 'u' {
 			c++
