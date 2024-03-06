@@ -157,6 +157,38 @@ func functions(token string, tks []string) {
 			} else {
 				logued = Comands.LogOut()
 			}
+		} else if Comands.Compare(token, "MKGRP") {
+			fmt.Println(">>>>>>>>>>>>>>>>>>>> FUNCIÓN MKGRP <<<<<<<<<<<<<<<<<<<<")
+			if !logued {
+				Comands.Error("MKGRP", "Aún no se ha iniciado sesión")
+				return
+			} else {
+				Comands.DataGroup(tks, "MK")
+			}
+		} else if Comands.Compare(token, "RMGRP") {
+			fmt.Println(">>>>>>>>>>>>>>>>>>>> FUNCIÓN RMGRP <<<<<<<<<<<<<<<<<<<<")
+			if !logued {
+				Comands.Error("RMGRP", "Aún no se ha iniciado sesión")
+				return
+			} else {
+				Comands.DataGroup(tks, "RM")
+			}
+		} else if Comands.Compare(token, "MKUSER") {
+			fmt.Println(">>>>>>>>>>>>>>>>>>>> FUNCIÓN MKUSER <<<<<<<<<<<<<<<<<<<<")
+			if !logued {
+				Comands.Error("MKUSER", "Aún no se ha iniciado sesión")
+				return
+			} else {
+				Comands.DataUser(tks, "MK")
+			}
+		} else if Comands.Compare(token, "RMUSER") {
+			fmt.Println(">>>>>>>>>>>>>>>>>>>> FUNCIÓN RMUSER <<<<<<<<<<<<<<<<<<<<")
+			if !logued {
+				Comands.Error("RMUSER", "Aún no se ha iniciado sesión")
+				return
+			} else {
+				Comands.DataUser(tks, "RM")
+			}
 		} else {
 			Comands.Error("ANALIZADOR", "NO se reconoce el comando \" "+token+"\" ")
 		}
@@ -205,8 +237,11 @@ func Exec(path string) {
 			functions(tk, tokens)
 		}
 	}
-	if err := fileScanner.Err(); err != nil {
-		log.Fatalf("Error al leer el archivo: %s", err)
+	if err = fileScanner.Err(); err != nil {
+		log.Fatalf(
+			"Error al leer el archivo: %s",
+			err,
+		)
 	}
 	file.Close()
 }

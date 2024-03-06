@@ -75,7 +75,7 @@ func activeSession(u string, p string, id string) bool {
 	}
 	var fb Structs.FilesBlocks
 	txt := ""
-	for block := 0; block < 16; block++ {
+	for block := 1; block < 16; block++ {
 		if inode.I_block[block-1] == -1 {
 			break
 		}
@@ -93,6 +93,7 @@ func activeSession(u string, p string, id string) bool {
 			}
 		}
 	}
+
 	vctr := strings.Split(txt, "\n")
 	for i := 0; i < len(vctr)-1; i++ {
 		line := vctr[i]
@@ -103,17 +104,17 @@ func activeSession(u string, p string, id string) bool {
 				exists := false
 				for j := 0; j < len(vctr)-1; j++ {
 					line2 := vctr[j]
-					if (line2[2] == 'G' || line2[2] == 'g') && line[0] != 0 {
-						inG := strings.Split(line, ",")
+					if (line2[2] == 'G' || line2[2] == 'g') && line2[0] != '0' {
+						inG := strings.Split(line2, ",")
 						if inG[2] == in[2] {
-							idGroup = in[0]
+							idGroup = inG[0]
 							exists = true
 							break
 						}
 					}
 				}
 				if !exists {
-					Error("LOGIN", "NO se encontre el grupo \""+in[2]+"\".")
+					Error("LOGIN", "No se encontre el grupo \""+in[2]+"\".")
 					return false
 				}
 				Message("LOGIN", "Logueado correctamente")

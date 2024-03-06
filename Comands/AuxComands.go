@@ -27,7 +27,7 @@ func Message(op string, message string) {
 }
 
 func Confirm(message string) bool {
-	fmt.Println(message + "(y/n")
+	fmt.Println(message + "(y/n)")
 	var resp string
 	fmt.Scanln(&resp)
 	if Compare(resp, "y") {

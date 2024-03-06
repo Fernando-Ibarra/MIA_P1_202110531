@@ -61,7 +61,7 @@ func DataFDISK(tokens []string) {
 		} else if size != "" && deleteP == "" && add == "" {
 			generatePartition(size, unit, driveLetter, tipo, fit, name)
 		} else if size == "" && deleteP != "" && add == "" {
-			// deletePartition(deleteP, driveLetter, name)
+			deletePartition(deleteP, driveLetter, name)
 		} else if size == "" && deleteP == "" && add != "" {
 			// agregar
 		}
@@ -205,21 +205,92 @@ func deletePartition(de string, d string, n string) {
 		return
 	}
 
+	var partitions [4]Structs.Partition
 	mbr := readDisk(d)
-	// partitions := GetPartitions(*mbr)
-	comeBack := SearchPartitions(*mbr, n, d)
-	if comeBack == nil {
-		Error("FDISK", "La partition con nombre "+n+", no existe")
-		return
-	}
-	// var empty int8 = 0
-	// s1 := &empty
-	// size := comeBack.Part_s
+	partitions[0] = mbr.Mbr_partitions_1
+	partitions[1] = mbr.Mbr_partitions_2
+	partitions[2] = mbr.Mbr_partitions_3
+	partitions[3] = mbr.Mbr_partitions_4
+
 	file, err := os.OpenFile(strings.ReplaceAll(d, "\"", ""), os.O_WRONLY, os.ModeAppend)
 	if err != nil {
 		Error("FDISK", "Error al abrir el archivo")
 	}
-	file.Seek(comeBack.Part_start, 0)
+
+	founded := false
+	c := 0
+	// ext := false
+	// extended := Structs.NewPartition()
+	for i := 0; i < len(partitions); i++ {
+		partition := partitions[i]
+		if partition.Part_status == "1"[0] {
+			nameP := ""
+			for j := 0; j < len(partition.Part_name); j++ {
+				if partition.Part_name[j] != 0 {
+					nameP += string(partition.Part_name[j])
+				}
+			}
+			if Compare(nameP, n) {
+				founded = true
+				c = i
+				zero := '0'
+				tam := int(partition.Part_s)
+				file.Seek(partition.Part_start, 0)
+				for j := 0; j < tam; j++ {
+					var binaryZero bytes.Buffer
+					binary.Write(&binaryZero, binary.BigEndian, zero)
+					WrittingBytes(file, binaryZero.Bytes())
+				}
+			} else if partition.Part_type == "E"[0] || partition.Part_type == "e"[0] {
+				// ext = true
+				// extended = partition
+			}
+		}
+	}
+
+	/* if ext {
+		ebrs := GetLogics(extended, d)
+		for i := 0; i < len(ebrs); i++ {
+			ebr := ebrs[i]
+			if ebr.Part_mount == '1' {
+				nameE := ""
+				for j := 0; j < len(ebr.Part_name); j++ {
+					if ebr.Part_name[j] != 0 {
+						nameE += string(ebr.Part_name[j])
+					}
+				}
+				if Compare(nameE, n) {
+					// ELIMINAR LÓGICA
+					tmp := Structs.NewPartition()
+					tmp.Part_status = '1'
+					tmp.Part_type = 'L'
+					tmp.Part_fit = ebr.Part_fit
+					tmp.Part_start = ebr.Part_start
+					tmp.Part_s = ebr.Part_s
+					copy(tmp.Part_name[:], ebr.Part_name[:])
+					return
+				}
+			}
+		}
+	}
+	*/
+	if founded {
+		if c == 0 {
+			mbr.Mbr_partitions_1 = Structs.NewPartition()
+		} else if c == 1 {
+			mbr.Mbr_partitions_2 = Structs.NewPartition()
+		} else if c == 2 {
+			mbr.Mbr_partitions_3 = Structs.NewPartition()
+		} else if c == 3 {
+			mbr.Mbr_partitions_4 = Structs.NewPartition()
+		}
+		file.Seek(0, 0)
+		var binary2 bytes.Buffer
+		binary.Write(&binary2, binary.BigEndian, mbr)
+		WrittingBytes(file, binary2.Bytes())
+		Message("FDISK", "Particion "+n+", eliminada correctamente")
+		return
+	}
 }
 
 func GetPartitions(disk Structs.MBR) []Structs.Partition {

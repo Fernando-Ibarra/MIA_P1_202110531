@@ -69,6 +69,10 @@ func mount(d string, n string, l string) {
 	}
 
 	partition := SearchPartitions(disk, n, d)
+	if partition == nil {
+		Error("MOUNT", "No se encontró la partición "+n)
+		return
+	}
 	if partition.Part_type == 'E' || partition.Part_type == 'L' {
 		var name [16]byte
 		copy(name[:], n)

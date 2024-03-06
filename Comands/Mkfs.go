@@ -54,22 +54,24 @@ func mkfs(id string, t string, fs string) {
 		spr.S_block_s = int64(unsafe.Sizeof(Structs.DirectoriesBlocks{}))
 		spr.S_inodes_count = int64(n)
 		spr.S_free_inodes_count = int64(n)
-		spr.S_inodes_count = int64(3 * n)
+		spr.S_blocks_count = int64(3 * n)
+		spr.S_free_blocks_count = int64(3 * n)
 		dat := time.Now().String()
 		copy(spr.S_mtime[:], dat)
 		spr.S_mnt_count = spr.S_mnt_count + 1
 		spr.S_filesystem_type = 2
 		ext2(spr, partition, int64(n), p)
 	} else {
-
+		// 3fs
 	}
 }
 
 func ext2(spr Structs.SuperBlock, p Structs.Partition, n int64, path string) {
-	spr.S_bm_inode_start = p.Part_start + int64(unsafe.Sizeof(Structs.SuperBlock{}))
-	spr.S_bm_block_start = p.Part_start + n
+	spr.S_bm_inode_start = p.Part_s + int64(unsafe.Sizeof(Structs.SuperBlock{}))
+	spr.S_bm_block_start = spr.S_bm_inode_start + n
 	spr.S_inode_start = spr.S_bm_block_start + (3 * n)
-	spr.S_block_start = spr.S_bm_block_start + (n * int64(unsafe.Sizeof(Structs.Inodos{})))
+	spr.S_block_start = spr.S_bm_inode_start + (n * int64(unsafe.Sizeof(Structs.Inodos{})))
+
 	file, err := os.OpenFile(strings.ReplaceAll(path, "\"", ""), os.O_WRONLY, os.ModeAppend)
 	if err != nil {
 		Error("MKFS", "No se ha encontrado el disco")
@@ -87,6 +89,14 @@ func ext2(spr Structs.SuperBlock, p Structs.Partition, n int64, path string) {
 		binary.Write(&binaryZero, binary.BigEndian, zero)
 		WrittingBytes(file, binaryZero.Bytes())
 	}
+
+	file.Seek(spr.S_bm_block_start, 0)
+	for i := 0; i < 3*int(n); i++ {
+		var binaryZero bytes.Buffer
+		binary.Write(&binaryZero, binary.BigEndian, zero)
+		WrittingBytes(file, binaryZero.Bytes())
+	}
+
 	inode := Structs.NewInodos()
 	inode.I_uid = -1
 	inode.I_gid = -1
@@ -105,6 +115,7 @@ func ext2(spr Structs.SuperBlock, p Structs.Partition, n int64, path string) {
 	}
 
 	folder := Structs.NewDirectoriesBlocks()
+
 	for i := 0; i < len(folder.B_content); i++ {
 		folder.B_content[i].B_inodo = -1
 	}
@@ -118,7 +129,7 @@ func ext2(spr Structs.SuperBlock, p Structs.Partition, n int64, path string) {
 	file.Close()
 
 	rescu := Structs.NewSuperBlock()
-	file, err = os.OpenFile(strings.ReplaceAll(path, "\"", ""), os.O_WRONLY, os.ModeAppend)
+	file, err = os.Open(strings.ReplaceAll(path, "\"", ""))
 	if err != nil {
 		Error("MKFS", "No se ha encontrado el disco")
 		return
@@ -196,17 +207,17 @@ func ext2(spr Structs.SuperBlock, p Structs.Partition, n int64, path string) {
 
 	file.Seek(spr.S_inode_start+int64(unsafe.Sizeof(Structs.Inodos{})), 0)
 	var bin4 bytes.Buffer
-	binary.Write(&bin4, binary.BigEndian, inode)
+	binary.Write(&bin4, binary.BigEndian, inodetmp)
 	WrittingBytes(file, bin4.Bytes())
 
 	file.Seek(spr.S_block_start, 0)
 	var bin5 bytes.Buffer
-	binary.Write(&bin5, binary.BigEndian, inode)
+	binary.Write(&bin5, binary.BigEndian, fb)
 	WrittingBytes(file, bin5.Bytes())
 
 	file.Seek(spr.S_block_start+int64(unsafe.Sizeof(Structs.DirectoriesBlocks{})), 0)
 	var bin6 bytes.Buffer
-	binary.Write(&bin6, binary.BigEndian, inode)
+	binary.Write(&bin6, binary.BigEndian, fileb)
 	WrittingBytes(file, bin6.Bytes())
 
 	file.Close()
