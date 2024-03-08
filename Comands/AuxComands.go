@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"strings"
 	"unsafe"
 )
@@ -64,7 +65,7 @@ func readDisk(path string) *Structs.MBR {
 	file, err := os.Open(strings.ReplaceAll(path, "\"", ""))
 	defer file.Close()
 	if err != nil {
-		Error("FDISK", "Error al abrir el archivo AAAA")
+		Error("FDISK", "Error al abrir el archivo")
 		return nil
 	}
 	file.Seek(0, 0)
@@ -72,9 +73,45 @@ func readDisk(path string) *Structs.MBR {
 	buffer := bytes.NewBuffer(data)
 	err_ := binary.Read(buffer, binary.BigEndian, &mbr)
 	if err_ != nil {
-		Error("FDISK", "Error al leer el archivo BBB")
+		Error("FDISK", "Error al leer el archivo")
 		return nil
 	}
 	var mDir *Structs.MBR = &mbr
 	return mDir
+}
+func CreateFile(nameFile string) {
+	var _, err = os.Stat(nameFile)
+
+	if os.IsNotExist(err) {
+		var file, err = os.Create(nameFile)
+		if err != nil {
+			return
+		}
+		defer file.Close()
+	}
+	fmt.Println(("Archivo generado exitosamente"))
+}
+
+func WriteFile(content string, nameFile string) {
+	var file, err = os.OpenFile(nameFile, os.O_RDWR, 0644)
+	if err != nil {
+		return
+	}
+	defer file.Close()
+	_, err = file.WriteString(content)
+	if err != nil {
+		return
+	}
+	err = file.Sync()
+	if err != nil {
+		return
+	}
+	fmt.Println("Archivo guardado exitosamente.")
+}
+
+func Execute(nameFile string, file string) {
+	path, _ := exec.LookPath("dot")
+	cmd, _ := exec.Command(path, "-Tjpg", file).Output()
+	mode := int(0777)
+	_ = os.WriteFile(nameFile, cmd, os.FileMode(mode))
 }
