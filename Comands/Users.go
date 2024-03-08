@@ -268,7 +268,7 @@ func rmuser(user string) {
 	exists := false
 	for i := 0; i < len(vctr)-1; i++ {
 		line := vctr[i]
-		if (line[2] == 'G' || line[2] == 'g') && line[0] != '0' {
+		if (line[2] == 'U' || line[2] == 'u') && line[0] != '0' {
 			in := strings.Split(line, ",")
 			if in[3] == user {
 				exists = true

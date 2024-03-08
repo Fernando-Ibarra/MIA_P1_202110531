@@ -219,8 +219,9 @@ func deletePartition(de string, d string, n string) {
 
 	founded := false
 	c := 0
-	// ext := false
-	// extended := Structs.NewPartition()
+	ext := false
+	deletedL := true
+	extended := Structs.NewPartition()
 	for i := 0; i < len(partitions); i++ {
 		partition := partitions[i]
 		if partition.Part_status == "1"[0] {
@@ -231,24 +232,25 @@ func deletePartition(de string, d string, n string) {
 				}
 			}
 			if Compare(nameP, n) {
+				deletedL = false
 				founded = true
 				c = i
-				zero := '0'
-				tam := int(partition.Part_s)
-				file.Seek(partition.Part_start, 0)
-				for j := 0; j < tam; j++ {
+				var zero int8 = 0
+				size := int(partition.Part_s)
+				for j := 0; j < size; j++ {
+					file.Seek(partition.Part_start+int64(j), 0)
 					var binaryZero bytes.Buffer
 					binary.Write(&binaryZero, binary.BigEndian, zero)
 					WrittingBytes(file, binaryZero.Bytes())
 				}
 			} else if partition.Part_type == "E"[0] || partition.Part_type == "e"[0] {
-				// ext = true
-				// extended = partition
+				ext = true
+				extended = partition
 			}
 		}
 	}
 
-	/* if ext {
+	if ext {
 		ebrs := GetLogics(extended, d)
 		for i := 0; i < len(ebrs); i++ {
 			ebr := ebrs[i]
@@ -260,29 +262,60 @@ func deletePartition(de string, d string, n string) {
 					}
 				}
 				if Compare(nameE, n) {
-					// ELIMINAR LÓGICA
-					tmp := Structs.NewPartition()
-					tmp.Part_status = '1'
-					tmp.Part_type = 'L'
-					tmp.Part_fit = ebr.Part_fit
-					tmp.Part_start = ebr.Part_start
-					tmp.Part_s = ebr.Part_s
-					copy(tmp.Part_name[:], ebr.Part_name[:])
+					logicPos := ebr.Part_start + int64(unsafe.Sizeof(Structs.EBR{}))
+
+					var zero int8 = 0
+					newEbr := Structs.NewEBR()
+					newEbr.Part_next = ebr.Part_next
+					file.Seek(ebr.Part_start, 0)
+					var binaryEbr bytes.Buffer
+					binary.Write(&binaryEbr, binary.BigEndian, newEbr)
+					WrittingBytes(file, binaryEbr.Bytes())
+
+					size := int(ebr.Part_s)
+					for j := 0; j < size; j++ {
+						file.Seek(logicPos+int64(j), 0)
+						var binaryZero bytes.Buffer
+						binary.Write(&binaryZero, binary.BigEndian, zero)
+						WrittingBytes(file, binaryZero.Bytes())
+					}
+					deletedL = false
+					Message("FDISK", "Particion Lógica "+n+", eliminada correctamente")
 					return
 				}
 			}
 		}
 	}
-	*/
-	if founded {
+
+	if founded && !deletedL {
 		if c == 0 {
 			mbr.Mbr_partitions_1 = Structs.NewPartition()
+			mbr.Mbr_partitions_1.Part_fit = 0
+			mbr.Mbr_partitions_1.Part_type = 0
+			mbr.Mbr_partitions_1.Part_status = 0
+			mbr.Mbr_partitions_1.Part_start = 0
+			mbr.Mbr_partitions_1.Part_s = 0
 		} else if c == 1 {
 			mbr.Mbr_partitions_2 = Structs.NewPartition()
+			mbr.Mbr_partitions_2.Part_fit = 0
+			mbr.Mbr_partitions_2.Part_type = 0
+			mbr.Mbr_partitions_2.Part_status = 0
+			mbr.Mbr_partitions_2.Part_start = 0
+			mbr.Mbr_partitions_2.Part_s = 0
 		} else if c == 2 {
 			mbr.Mbr_partitions_3 = Structs.NewPartition()
+			mbr.Mbr_partitions_3.Part_fit = 0
+			mbr.Mbr_partitions_3.Part_type = 0
+			mbr.Mbr_partitions_3.Part_status = 0
+			mbr.Mbr_partitions_3.Part_start = 0
+			mbr.Mbr_partitions_3.Part_s = 0
 		} else if c == 3 {
 			mbr.Mbr_partitions_4 = Structs.NewPartition()
+			mbr.Mbr_partitions_4.Part_fit = 0
+			mbr.Mbr_partitions_4.Part_type = 0
+			mbr.Mbr_partitions_4.Part_status = 0
+			mbr.Mbr_partitions_4.Part_start = 0
+			mbr.Mbr_partitions_4.Part_s = 0
 		}
 		file.Seek(0, 0)
 		var binary2 bytes.Buffer

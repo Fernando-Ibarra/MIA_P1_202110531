@@ -1,8 +1,13 @@
 package Structs
 
 type Journaling struct {
-	Operation [20]byte
-	Path      [150]byte
-	Content   [10]byte
-	Date      [150]byte
+	Operation [15]byte
+	Path      [120]byte
+	Content   [20]byte
+	Date      [50]byte
+}
+
+func NewJournaling() Journaling {
+	var journaling Journaling
+	return journaling
 }

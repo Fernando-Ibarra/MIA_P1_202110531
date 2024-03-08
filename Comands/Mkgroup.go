@@ -262,9 +262,9 @@ func rmgrp(n string) {
 			cadS = append(cadS, aux)
 			txt = strings.ReplaceAll(txt, aux, "")
 			tam = len(txt)
-			if tam < 64 && tam != 0 {
-				cadS = append(cadS, txt)
-			}
+		}
+		if tam < 64 && tam != 0 {
+			cadS = append(cadS, txt)
 		}
 	} else {
 		cadS = append(cadS, txt)
@@ -274,6 +274,12 @@ func rmgrp(n string) {
 		return
 	}
 	file.Close()
+
+	file, err = os.OpenFile(strings.ReplaceAll(path, "\"", ""), os.O_WRONLY, os.ModeAppend)
+	if err != nil {
+		Error("MKGRP", "No se ha encontrado el disco")
+		return
+	}
 
 	for i := 0; i < len(cadS); i++ {
 		var fbAux Structs.FilesBlocks
