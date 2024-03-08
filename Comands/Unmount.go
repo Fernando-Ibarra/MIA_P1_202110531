@@ -53,10 +53,10 @@ func unmount(id string) {
 		if DiskMount[i].Partitions[j].State == 1 {
 			if DiskMount[i].Partitions[j].Letter == letter {
 				DiskMount[i].Partitions[j].State = 0
-				Message("UNMOUNT", "Se ha realizado correctamente el unmount -id"+id)
+				Message("UNMOUNT", "Se ha realizado correctamente el unmount -id="+id)
 				return
 			} else {
-				Error("UNMOUNT", "NO se ha podido realizar correctamente el unmount -id"+id)
+				Error("UNMOUNT", "No se ha podido realizar correctamente el unmount -id="+id)
 				return
 			}
 		}

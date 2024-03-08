@@ -189,6 +189,14 @@ func functions(token string, tks []string) {
 			} else {
 				Comands.DataUser(tks, "RM")
 			}
+		} else if Comands.Compare(token, "MKDIR") {
+			fmt.Println(">>>>>>>>>>>>>>>>>>>> FUNCIÓN MKDIR <<<<<<<<<<<<<<<<<<<<")
+			if !logued {
+				Comands.Error("REP", "Aún no se ha iniciado sesión")
+				return
+			} else {
+				Comands.DataDir(tks)
+			}
 		} else if Comands.Compare(token, "REP") {
 			fmt.Println(">>>>>>>>>>>>>>>>>>>> FUNCIÓN REP <<<<<<<<<<<<<<<<<<<<")
 			if !logued {
