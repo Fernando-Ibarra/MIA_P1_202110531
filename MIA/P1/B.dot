@@ -1,0 +1,24 @@
+digraph Disk{
+rankdir=TB;
+forcelabels=true;
+graph [dpi = "600"];
+node [ shape=plaintext fontname=Arial ]
+n1 [ label = <
+<table>
+<tr>
+<td COLSPAN='2'>Primaria
+11.110% del disco</td>"<td COLSPAN='10'>"Extendida
+44.440% del disco</td>"<td COLSPAN='2'>Primaria
+11.110% del disco</td>"<td COLSPAN='2'>Primaria
+0.000% del disco</td>"<td COLSPAN='2'>Libre
+33.000% del disco</td>"</tr>
+<tr>
+<td>"EBR"</td><td>"Lógica
+ 11.11% de la partición extendida</td><td>"EBR"</td><td>"Lógica
+ 0.00% de la partición extendida</td><td>"Lógica
+ 33.340000% libre de la partición extendida</td><td>"EBR"</td><td>"Lógica
+ 11.11% de la partición extendida</td><td>"Libre
+ 22.00% de la partición extendida</td></tr>
+</table>
+> ]
+}

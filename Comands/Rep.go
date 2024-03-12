@@ -4,6 +4,8 @@ import (
 	"Proyecto1/Structs"
 	"bytes"
 	"encoding/binary"
+	"fmt"
+	"math"
 	"os"
 	"strconv"
 	"strings"
@@ -37,6 +39,8 @@ func DataRep(context []string) {
 		repMBR(id, pathOut)
 	} else if Compare(name, "sb") {
 		repSuperBlock(id, pathOut)
+	} else if Compare(name, "disk") {
+		repDisk(id, pathOut)
 	}
 }
 
@@ -184,4 +188,198 @@ func repSuperBlock(id string, pathOut string) {
 	text += "> ]\n"
 	text += "}\n"
 	// fmt.Println(text)
+}
+
+func repDisk(id string, pathOut string) {
+	var path string
+	GetMount("REP", id, &path)
+	file, err := os.Open(strings.ReplaceAll(path, "\"", ""))
+	if err != nil {
+		Error("REP", "No se ha encontrado el disco")
+		return
+	}
+
+	var disk Structs.MBR
+	file.Seek(0, 0)
+	data := readBytes(file, int(unsafe.Sizeof(Structs.MBR{})))
+	buffer := bytes.NewBuffer(data)
+	err_ := binary.Read(buffer, binary.BigEndian, &disk)
+	if err_ != nil {
+		Error("REP", "Error al leer el archivo")
+		return
+	}
+	file.Close()
+
+	aux := strings.Split(path, ".")
+	if len(aux) > 2 {
+		Error("REP", "No se admiten nombres de archivos que contengan puntos")
+		return
+	}
+	pd := aux[0] + ".dot"
+
+	folder := ""
+	address := strings.Split(pd, "/")
+
+	fileaux, _ := os.Open(strings.ReplaceAll(pd, "\"", ""))
+	if fileaux == nil {
+		for i := 0; i < len(address); i++ {
+			folder += "/" + address[i]
+			if _, err_2 := os.Stat(folder); os.IsNotExist(err_2) {
+				os.Mkdir(folder, 0777)
+			}
+		}
+		os.Remove(pd)
+	} else {
+		fileaux.Close()
+	}
+
+	partitions := GetPartitions(disk)
+	var extended Structs.Partition
+	ext := false
+	for i := 0; i < 4; i++ {
+		if partitions[i].Part_status == '1' {
+			if partitions[i].Part_type == "E"[0] || partitions[i].Part_type == "e"[0] {
+				ext = true
+				extended = partitions[i]
+			}
+		}
+	}
+
+	content := "digraph Disk{\n"
+	content += "rankdir=TB;\n"
+	content += "forcelabels=true;\n"
+	content += "graph [dpi = \"600\"];\n"
+	content += "node [ shape=plaintext fontname=Arial ]\n"
+	content += "n1 [ label = <\n"
+	content += "<table>\n"
+	content += "<tr>\n"
+
+	var positions [5]int64
+	var positionsii [5]int64
+
+	positions[0] = disk.Mbr_partitions_1.Part_start - (1 + int64(unsafe.Sizeof(Structs.MBR{})))
+	positions[1] = disk.Mbr_partitions_2.Part_start - disk.Mbr_partitions_1.Part_start + disk.Mbr_partitions_1.Part_s
+	positions[2] = disk.Mbr_partitions_3.Part_start - disk.Mbr_partitions_2.Part_start + disk.Mbr_partitions_2.Part_s
+	positions[3] = disk.Mbr_partitions_4.Part_start - disk.Mbr_partitions_3.Part_start + disk.Mbr_partitions_3.Part_s
+	positions[4] = disk.Mbr_tamano + 1 - disk.Mbr_partitions_4.Part_start + disk.Mbr_partitions_4.Part_s
+
+	copy(positionsii[:], positions[:])
+
+	logic := 0
+	tmpLogic := ""
+
+	if ext {
+		tmpLogic += "<tr>\n"
+		auxEBR := Structs.NewEBR()
+		file, err = os.Open(strings.ReplaceAll(path, "\"", ""))
+
+		if err != nil {
+			Error("REP", "No se ha encontrado el disco")
+			return
+		}
+
+		file.Seek(extended.Part_start, 0)
+		data = readBytes(file, int(unsafe.Sizeof(Structs.EBR{})))
+		buffer = bytes.NewBuffer(data)
+		err_ = binary.Read(buffer, binary.BigEndian, &auxEBR)
+		if err_ != nil {
+			Error("REP", "Error al leer el archivo")
+			return
+		}
+		file.Close()
+
+		var tamGen int64 = 0
+		for auxEBR.Part_next != -1 {
+			tamGen += auxEBR.Part_s
+			res := float64(auxEBR.Part_s) / float64(disk.Mbr_tamano)
+			res = res * 100
+			tmpLogic += "<td>\"EBR\"</td>"
+			s := fmt.Sprintf("%.2f", res)
+			tmpLogic += "<td>\"Lógica \n " + s + "% de la partición extendida</td>\n"
+
+			resta := float64(auxEBR.Part_next) - (float64(auxEBR.Part_start) + float64(auxEBR.Part_s))
+			resta = resta / float64(disk.Mbr_tamano)
+			resta = resta * 10000.00
+			resta = math.Round(resta) / 100.00
+			if resta != 0 {
+				s = fmt.Sprintf("%f", resta)
+				tmpLogic += "<td>\"Lógica\n " + s + "% libre de la partición extendida</td>\n"
+				logic++
+			}
+			logic += 2
+			file, err = os.Open(strings.ReplaceAll(path, "\"", ""))
+			if err != nil {
+				Error("REP", "No se ha encontrado el disco")
+				return
+			}
+
+			file.Seek(auxEBR.Part_next, 0)
+			data = readBytes(file, int(unsafe.Sizeof(Structs.EBR{})))
+			buffer = bytes.NewBuffer(data)
+			err_ = binary.Read(buffer, binary.BigEndian, &auxEBR)
+			if err_ != nil {
+				Error("REP", "Error al leer el archivo")
+				return
+			}
+			file.Close()
+		}
+		resta := float64(extended.Part_s) - float64(tamGen)
+		resta = resta / float64(disk.Mbr_tamano)
+		resta = math.Round(resta * 100)
+		if resta != 0 {
+			s := fmt.Sprintf("%.2f", resta)
+			tmpLogic += "<td>\"Libre \n " + s + "% de la partición extendida \"</td>\n"
+			logic++
+		}
+		tmpLogic += "</tr>\n\n"
+		logic += 2
+	}
+	var tamPrim int64
+	for i := 0; i < 4; i++ {
+		if partitions[i].Part_type == 'E' {
+			tamPrim += partitions[i].Part_s
+			res := float64(partitions[i].Part_s) / float64(disk.Mbr_tamano)
+			res = math.Round(res*10000.00) / 100.00
+			s := fmt.Sprintf("%.3f", res)
+			content += "<td COLSPAN='" + strconv.Itoa(logic) + "'>Extendida \n" + s + "% del disco</td>\n"
+		} else if partitions[i].Part_start != -1 {
+			tamPrim += partitions[i].Part_s
+			res := float64(partitions[i].Part_s) / float64(disk.Mbr_tamano)
+			res = math.Round(res*10000.00) / 100.00
+			s := fmt.Sprintf("%.3f", res)
+			content += "<td ROWSPAN='2'>Primaria \n" + s + "% del disco</td>\n"
+		}
+	}
+
+	if tamPrim != 0 {
+		libre := disk.Mbr_tamano - tamPrim
+		res := float64(libre) / float64(disk.Mbr_tamano)
+		res = math.Round(res * 100)
+		s := fmt.Sprintf("%.3f", res)
+		content += "<td ROWSPAN='2'>Libre\n" + s + "% del disco</td>"
+	}
+
+	content += "</tr>\n"
+	content += tmpLogic
+	content += "</table>\n"
+	content += "> ]\n"
+	content += "}\n"
+
+	fmt.Println(content)
+	/*
+		b := []byte(content)
+		err_ = ioutil.WriteFile(pd, b, 0644)
+		if err_ != nil {
+			log.Fatal(err_)
+		}
+
+		termination := strings.Split(pathOut, ".")
+		path2, _ := exec.LookPath("dot")
+		cmd, _ := exec.Command(path2, "-T"+termination[1], pd).Output()
+		mode := int(0777)
+		ioutil.WriteFile(pathOut, cmd, os.FileMode(mode))
+		disco := strings.Split(path, "/")
+		Message("REP", "Reporte tipo DISK del disco "+disco[len(disco)-1]+", creado correctamente")
+
+	*/
 }
