@@ -192,10 +192,12 @@ func functions(token string, tks []string) {
 		} else if Comands.Compare(token, "MKDIR") {
 			fmt.Println(">>>>>>>>>>>>>>>>>>>> FUNCIÓN MKDIR <<<<<<<<<<<<<<<<<<<<")
 			if !logued {
-				Comands.Error("REP", "Aún no se ha iniciado sesión")
+				Comands.Error("MKDIR", "Aún no se ha iniciado sesión")
 				return
 			} else {
-				Comands.DataDir(tks)
+				var p string
+				partition := Comands.GetMount("MKDIR", Comands.Logged.Id, &p)
+				Comands.DataDir(tks, partition, p)
 			}
 		} else if Comands.Compare(token, "REP") {
 			fmt.Println(">>>>>>>>>>>>>>>>>>>> FUNCIÓN REP <<<<<<<<<<<<<<<<<<<<")
