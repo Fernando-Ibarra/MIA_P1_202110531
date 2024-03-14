@@ -48,10 +48,14 @@ func DataRep(context []string) {
 		repBM(id, pathOut, "BI")
 	} else if Compare(name, "bm_bloc") {
 		repBM(id, pathOut, "BB")
+	} else if Compare(name, "inode") {
+		repInode(id, pathOut)
 	}
+
+	//
 }
 
-// PENDIENTE CREAR ARCHIVO JGP
+// PENDIENTE CREAR ARCHIVO IMAGEN
 func repMBR(id string, pathOut string) {
 	if !(id[2] == '3' && id[3] == '1') {
 		Error("REP", "El primer identificador no es válido")
@@ -508,4 +512,115 @@ func fromBMtoFile(ch string) string {
 		return "-1"
 	}
 	return "-1"
+}
+
+func repInode(id string, pathOut string) {
+	if !(id[2] == '3' && id[3] == '1') {
+		Error("REP", "El primer identificador no es válido")
+		return
+	}
+
+	var path string
+	partition := GetMount("MKGRP", Logged.Id, &path)
+	if string(partition.Part_status) == "0" {
+		Error("REP", "No se encontró la partición montada con el id: "+Logged.Id)
+		return
+	}
+
+	file, err := os.Open(strings.ReplaceAll(path, "\"", ""))
+	if err != nil {
+		Error("REP", "No se ha encontrado el disco")
+		return
+	}
+
+	super := Structs.NewSuperBlock()
+	file.Seek(partition.Part_start, 0)
+	data := readBytes(file, int(unsafe.Sizeof(Structs.SuperBlock{})))
+	buffer := bytes.NewBuffer(data)
+	err_ := binary.Read(buffer, binary.BigEndian, &super)
+	if err_ != nil {
+		Error("REP", "Error al leer el archivo")
+		return
+	}
+
+	content := "digraph Inodos{\n"
+	content += "node [ shape=plaintext fontname=Arial ]\n"
+
+	var inodes []Structs.Inodos
+	inode := Structs.NewInodos()
+	file.Seek(super.S_inode_start, 0)
+	for i := 0; i < int(super.S_inodes_count); i++ {
+		data = readBytes(file, int(unsafe.Sizeof(Structs.Inodos{})))
+		buffer = bytes.NewBuffer(data)
+		err_ = binary.Read(buffer, binary.BigEndian, &inode)
+		if err_ != nil {
+			Error("REP", "Error al leer el archivo")
+			return
+		}
+
+		if inode.I_uid == -1 {
+			break
+		}
+		inodes = append(inodes, inode)
+	}
+
+	for i := 0; i < len(inodes); i++ {
+		content += "\nA" + strconv.Itoa(i)
+		content += "[label= <"
+		content += "<table border=\"1\" cellborder=\"0\">\n"
+		content += "<tr><td colspan=\"2\" >Inodo " + strconv.Itoa(i) + "</td></tr>\n"
+		content += "<tr><td>I_uid</td><td>" + strconv.Itoa(int(inodes[i].I_uid)) + "</td></tr>\n"
+		content += "<tr><td>I_gid</td><td>" + strconv.Itoa(int(inodes[i].I_gid)) + "</td></tr>\n"
+		content += "<tr><td>I_s</td><td>" + strconv.Itoa(int(inodes[i].I_s)) + "</td></tr>\n"
+		atime := ""
+		for k := 0; k < len(inodes[i].I_atime); k++ {
+			if inodes[i].I_atime[k] != 0 {
+				atime += string(inodes[i].I_atime[k])
+			}
+		}
+		content += "<tr><td>I_atime</td><td>" + atime + "</td></tr>\n"
+		ctime := ""
+		for k := 0; k < len(inodes[i].I_ctime); k++ {
+			if inodes[i].I_ctime[k] != 0 {
+				ctime += string(inodes[i].I_ctime[k])
+			}
+		}
+		content += "<tr><td>I_ctime</td><td>" + ctime + "</td></tr>\n"
+		mtime := ""
+		for k := 0; k < len(inodes[i].I_mtime); k++ {
+			if inodes[i].I_mtime[k] != 0 {
+				mtime += string(inodes[i].I_mtime[k])
+			}
+		}
+		content += "<tr><td>I_mtime</td><td>" + mtime + "</td></tr>\n"
+		for j := 0; j < len(inodes[i].I_block); j++ {
+			content += "<tr><td>I_block " + string(i+1) + " </td><td>" + strconv.Itoa(int(inodes[i].I_block[j])) + "</td></tr>\n"
+		}
+		content += "<tr><td>I_type</td><td>" + strconv.Itoa(int(inodes[i].I_type)) + "</td></tr>\n"
+		content += "<tr><td>I_perm</td><td>" + strconv.Itoa(int(inodes[i].I_perm)) + "</td></tr>\n"
+		content += "</table>\n"
+		content += ">]"
+	}
+
+	content += "\n"
+
+	for i := 0; i < len(inodes); i++ {
+		if i == 0 {
+			content += "A" + strconv.Itoa(i)
+		} else {
+			content += " -> " + "A" + strconv.Itoa(i)
+		}
+	}
+
+	content += "\n"
+	content += "{ rank=same "
+	for i := 0; i < len(inodes); i++ {
+		content += "A" + strconv.Itoa(i) + " "
+	}
+	content += "}"
+
+	content += "\n"
+	content += "}\n"
+
+	fmt.Println(content)
 }
