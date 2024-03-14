@@ -732,8 +732,7 @@ func repBlock(id string, pathOut string) {
 				if i < 16 {
 					if inode.I_block[i] != -1 {
 						var folderAux Structs.FilesBlocks
-						// +int64(unsafe.Sizeof(Structs.FilesBlocks{}))*32*inode.I_block[i]
-						file.Seek(super.S_block_start+int64(unsafe.Sizeof(Structs.DirectoriesBlocks{})), 0)
+						file.Seek(super.S_block_start+int64(unsafe.Sizeof(Structs.FilesBlocks{}))*int64(i+1), 0)
 
 						data = readBytes(file, int(unsafe.Sizeof(Structs.FilesBlocks{})))
 						buffer = bytes.NewBuffer(data)

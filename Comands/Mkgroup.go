@@ -255,7 +255,7 @@ func rmgrp(n string) {
 	var cadS []string
 	if tam > 64 {
 		for tam > 64 {
-			aux := ""
+			aux = ""
 			for i := 0; i < 64; i++ {
 				aux += string(txt[i])
 			}

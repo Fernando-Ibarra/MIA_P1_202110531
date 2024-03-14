@@ -41,10 +41,17 @@ func DataUser(context []string, action string) {
 			return
 		}
 		rmuser(user)
+	} else if Compare(action, "CH") {
+		if user == "" || grp == "" {
+			Error(action+"GRP", "Se necesitan parametros obligatorios para cambiar el grupo de un usuario")
+			return
+		}
+		chgrp(user, grp)
 	} else {
 		Error(action+"USER", "No se reconoce este comando")
 		return
 	}
+
 }
 
 func mkuser(user string, pass string, grp string) {
@@ -343,5 +350,167 @@ func rmuser(user string) {
 	WrittingBytes(file, inodos.Bytes())
 
 	Message("RMUSER", "Usuario "+user+", eliminado correctamente")
+	file.Close()
+}
+
+func chgrp(user string, grp string) {
+	if !Compare(Logged.User, "root") {
+		Error("CHGRP", "Solo el usuario \"root\" puede acceder a estos comandos")
+		return
+	}
+
+	var path string
+	partition := GetMount("MKGRP", Logged.Id, &path)
+	if string(partition.Part_status) == "0" {
+		Error("CHGRP", "No se encontró la partición montada con el id: "+Logged.Id)
+		return
+	}
+
+	file, err := os.Open(strings.ReplaceAll(path, "\"", ""))
+	if err != nil {
+		Error("CHGRP", "No se ha encontrado el disco")
+		return
+	}
+
+	super := Structs.NewSuperBlock()
+	file.Seek(partition.Part_start, 0)
+	data := readBytes(file, int(unsafe.Sizeof(Structs.SuperBlock{})))
+	buffer := bytes.NewBuffer(data)
+	err_ := binary.Read(buffer, binary.BigEndian, &super)
+	if err_ != nil {
+		Error("CHGRP", "Error al leer el archivo")
+		return
+	}
+
+	inode := Structs.NewInodos()
+	file.Seek(super.S_inode_start+int64(unsafe.Sizeof(Structs.Inodos{})), 0)
+	data = readBytes(file, int(unsafe.Sizeof(Structs.Inodos{})))
+	buffer = bytes.NewBuffer(data)
+	err_ = binary.Read(buffer, binary.BigEndian, &inode)
+	if err_ != nil {
+		Error("CHGRP", "Error al leer el archivo")
+		return
+	}
+
+	var fb Structs.FilesBlocks
+	txt := ""
+	for block := 1; block < 16; block++ {
+		if inode.I_block[block-1] == -1 {
+			break
+		}
+		file.Seek(super.S_block_start+int64(unsafe.Sizeof(Structs.DirectoriesBlocks{}))+int64(unsafe.Sizeof(Structs.FilesBlocks{}))*int64(block-1), 0)
+		data = readBytes(file, int(unsafe.Sizeof(Structs.FilesBlocks{})))
+		buffer = bytes.NewBuffer(data)
+		err_ = binary.Read(buffer, binary.BigEndian, &fb)
+		if err_ != nil {
+			Error("CHGRP", "Error al leer el archivo")
+			return
+		}
+		for i := 0; i < len(fb.B_content); i++ {
+			if fb.B_content[i] != 0 {
+				txt += string(fb.B_content[i])
+			}
+		}
+	}
+
+	aux := ""
+	vctr := strings.Split(txt, "\n")
+	exists := false
+	for i := 0; i < len(vctr)-1; i++ {
+		line := vctr[i]
+		if (line[2] == 'G' || line[2] == 'g') && line[0] != 0 {
+			in := strings.Split(line, ",")
+			if in[2] == grp {
+				exists = true
+				continue
+			}
+		}
+		aux += line + "\n"
+	}
+	if !exists {
+		Error("CHGRP", "No se encontró \""+grp+"\".")
+		return
+	}
+
+	aux = ""
+	vctr = strings.Split(txt, "\n")
+	exists = false
+	for i := 0; i < len(vctr)-1; i++ {
+		line := vctr[i]
+		if (line[2] == 'U' || line[2] == 'u') && line[0] != '0' {
+			in := strings.Split(line, ",")
+			if in[3] == user {
+				exists = true
+				aux += in[0] + ",U," + grp + "," + in[3] + "," + in[4] + "\n"
+				continue
+			}
+		}
+		aux += line + "\n"
+	}
+
+	if !exists {
+		Error("CHGRP", "No se encontro el usuario \""+user+"\".")
+		return
+	}
+
+	txt = aux
+	tam := len(txt)
+	var cadenaS []string
+	if tam > 64 {
+		for tam > 64 {
+			aux = ""
+			for i := 0; i < 64; i++ {
+				aux += string(txt[i])
+			}
+			cadenaS = append(cadenaS, aux)
+			txt = strings.ReplaceAll(txt, aux, "")
+			tam = len(txt)
+		}
+		if tam < 64 && tam != 0 {
+			cadenaS = append(cadenaS, txt)
+		}
+	} else {
+		cadenaS = append(cadenaS, txt)
+	}
+
+	if len(cadenaS) > 16 {
+		Error("CHGRP", "Se ha llenado la cantidad de archivos posibles y no se puede generar más")
+		return
+	}
+
+	file.Close()
+
+	file, err = os.OpenFile(strings.ReplaceAll(path, "\"", ""), os.O_WRONLY, os.ModeAppend)
+	if err != nil {
+		Error("CHGRP", "No se ha encontrado el disco")
+		return
+	}
+
+	for i := 0; i < len(cadenaS); i++ {
+		var fbAux Structs.FilesBlocks
+		if inode.I_block[i] == -1 {
+			file.Seek(super.S_block_start+int64(unsafe.Sizeof(Structs.DirectoriesBlocks{}))+int64(unsafe.Sizeof(Structs.FilesBlocks{}))*int64(i), 0)
+			var binAux bytes.Buffer
+			binary.Write(&binAux, binary.BigEndian, fbAux)
+			WrittingBytes(file, binAux.Bytes())
+		} else {
+			fbAux = fb
+		}
+
+		copy(fbAux.B_content[:], cadenaS[i])
+		file.Seek(super.S_block_start+int64(unsafe.Sizeof(Structs.DirectoriesBlocks{}))+int64(unsafe.Sizeof(Structs.FilesBlocks{}))*int64(i), 0)
+		var bin1 bytes.Buffer
+		binary.Write(&bin1, binary.BigEndian, fbAux)
+		WrittingBytes(file, bin1.Bytes())
+	}
+	for i := 0; i < len(cadenaS); i++ {
+		inode.I_block[i] = int64(0)
+	}
+	file.Seek(super.S_inode_start+int64(unsafe.Sizeof(Structs.Inodos{})), 0)
+	var inodos bytes.Buffer
+	binary.Write(&inodos, binary.BigEndian, inode)
+	WrittingBytes(file, inodos.Bytes())
+
+	Message("CHGRP", "Usuario "+user+", se ha cambiado al grupo "+grp+" correctamente")
 	file.Close()
 }

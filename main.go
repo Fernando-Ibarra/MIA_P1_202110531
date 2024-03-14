@@ -173,6 +173,14 @@ func functions(token string, tks []string) {
 			} else {
 				Comands.DataGroup(tks, "RM")
 			}
+		} else if Comands.Compare(token, "CHGRP") {
+			fmt.Println(">>>>>>>>>>>>>>>>>>>> FUNCIÓN CHGRP <<<<<<<<<<<<<<<<<<<<")
+			if !logued {
+				Comands.Error("CHGRP", "Aún no se ha iniciado sesión")
+				return
+			} else {
+				Comands.DataUser(tks, "CH")
+			}
 		} else if Comands.Compare(token, "MKUSER") {
 			fmt.Println(">>>>>>>>>>>>>>>>>>>> FUNCIÓN MKUSER <<<<<<<<<<<<<<<<<<<<")
 			if !logued {
