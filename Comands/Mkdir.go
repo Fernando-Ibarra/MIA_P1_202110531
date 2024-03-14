@@ -31,59 +31,6 @@ func DataDir(context []string, partition Structs.Partition, pth string) {
 	mkdir(tmp, rBoolean, partition, pth)
 }
 
-func GetPath(path string) []string {
-	var result []string
-	if path == "" {
-		return result
-	}
-	aux := strings.Split(path, "/")
-	for i := 1; i < len(aux); i++ {
-		result = append(result, aux[i])
-	}
-	return result
-}
-
-func GetFree(spr Structs.SuperBlock, pth string, t string) int64 {
-	ch := '2'
-	file, err := os.Open(strings.ReplaceAll(pth, "\"", ""))
-	if err != nil {
-		Error("MKDIR", "No se ha encontrado el disco")
-		return -1
-	}
-	if t == "BI" {
-		file.Seek(spr.S_bm_inode_start, 0)
-		for i := 0; i < int(spr.S_bm_inode_start); i++ {
-			data := readBytes(file, int(unsafe.Sizeof(ch)))
-			buffer := bytes.NewBuffer(data)
-			err_ := binary.Read(buffer, binary.BigEndian, &ch)
-			if err_ != nil {
-				Error("MKDIR", "Error al leer el archivo")
-				return -1
-			}
-			if ch == '0' {
-				file.Close()
-				return int64(0)
-			}
-		}
-	} else {
-		file.Seek(spr.S_bm_block_start, 0)
-		for i := 0; i < int(spr.S_bm_block_start); i++ {
-			data := readBytes(file, int(unsafe.Sizeof(ch)))
-			buffer := bytes.NewBuffer(data)
-			err_ := binary.Read(buffer, binary.BigEndian, &ch)
-			if err_ != nil {
-				Error("MKDIR", "Error al leer el archivo")
-				return -1
-			}
-			if ch == '0' {
-				file.Close()
-				return int64(0)
-			}
-		}
-	}
-	return -1
-}
-
 func mkdir(path []string, r bool, partition Structs.Partition, pth string) {
 	copyPath := path
 	spr := Structs.NewSuperBlock()
@@ -109,15 +56,6 @@ func mkdir(path []string, r bool, partition Structs.Partition, pth string) {
 	data = readBytes(file, int(unsafe.Sizeof(Structs.Inodos{})))
 	buffer = bytes.NewBuffer(data)
 	err_ = binary.Read(buffer, binary.BigEndian, &inode)
-	if err_ != nil {
-		Error("MKDIR", "Error al leer el archivo")
-		return
-	}
-
-	file.Seek(spr.S_block_start, 0)
-	data = readBytes(file, int(unsafe.Sizeof(Structs.DirectoriesBlocks{})))
-	buffer = bytes.NewBuffer(data)
-	err_ = binary.Read(buffer, binary.BigEndian, &folder)
 	if err_ != nil {
 		Error("MKDIR", "Error al leer el archivo")
 		return
@@ -217,7 +155,6 @@ func mkdir(path []string, r bool, partition Structs.Partition, pth string) {
 					stack += "/" + path[v+1]
 					mkdir(GetPath(stack), false, partition, pth)
 					file.Seek(spr.S_inode_start, 0)
-
 					data = readBytes(file, int(unsafe.Sizeof(Structs.Inodos{})))
 					buffer = bytes.NewBuffer(data)
 					err_ = binary.Read(buffer, binary.BigEndian, &inode)
@@ -396,17 +333,18 @@ func mkdir(path []string, r bool, partition Structs.Partition, pth string) {
 		Error("MKDIR", "No se ha encontrado el disco")
 		return
 	}
+
 	file.Seek(spr.S_inode_start+int64(unsafe.Sizeof(Structs.Inodos{}))*bi, 0)
 	var binInodeTmp bytes.Buffer
 	binary.Write(&binInodeTmp, binary.BigEndian, inodetmp)
 	WrittingBytes(file, binInodeTmp.Bytes())
 
-	file.Seek(spr.S_block_start+int64(unsafe.Sizeof(Structs.DirectoriesBlocks{}))*bb*int64(unsafe.Sizeof(Structs.FilesBlocks{}))*32*bb, 0)
+	file.Seek(spr.S_block_start+int64(unsafe.Sizeof(Structs.DirectoriesBlocks{}))*bb+int64(unsafe.Sizeof(Structs.FilesBlocks{}))*32*bb, 0)
 	var binFolderTmp bytes.Buffer
 	binary.Write(&binFolderTmp, binary.BigEndian, foldertmp)
 	WrittingBytes(file, binFolderTmp.Bytes())
 
-	file.Seek(spr.S_block_start+int64(unsafe.Sizeof(Structs.DirectoriesBlocks{}))*past*int64(unsafe.Sizeof(Structs.FilesBlocks{}))*32*past, 0)
+	file.Seek(spr.S_block_start+int64(unsafe.Sizeof(Structs.DirectoriesBlocks{}))*past+int64(unsafe.Sizeof(Structs.FilesBlocks{}))*32*past, 0)
 	var binFolder bytes.Buffer
 	binary.Write(&binFolder, binary.BigEndian, folder)
 	WrittingBytes(file, binFolder.Bytes())
@@ -493,4 +431,57 @@ func updateBm(spr Structs.SuperBlock, pth string, t string) {
 		file.Close()
 	}
 	file.Close()
+}
+
+func GetPath(path string) []string {
+	var result []string
+	if path == "" {
+		return result
+	}
+	aux := strings.Split(path, "/")
+	for i := 1; i < len(aux); i++ {
+		result = append(result, aux[i])
+	}
+	return result
+}
+
+func GetFree(spr Structs.SuperBlock, pth string, t string) int64 {
+	ch := '2'
+	file, err := os.Open(strings.ReplaceAll(pth, "\"", ""))
+	if err != nil {
+		Error("MKDIR", "No se ha encontrado el disco")
+		return -1
+	}
+	if t == "BI" {
+		file.Seek(spr.S_bm_inode_start, 0)
+		for i := 0; i < int(spr.S_inodes_count); i++ {
+			data := readBytes(file, int(unsafe.Sizeof(ch)))
+			buffer := bytes.NewBuffer(data)
+			err_ := binary.Read(buffer, binary.BigEndian, &ch)
+			if err_ != nil {
+				Error("MKDIR", "Error al leer el archivo")
+				return -1
+			}
+			if ch == '0' {
+				file.Close()
+				return int64(i)
+			}
+		}
+	} else {
+		file.Seek(spr.S_bm_block_start, 0)
+		for i := 0; i < int(spr.S_blocks_count); i++ {
+			data := readBytes(file, int(unsafe.Sizeof(ch)))
+			buffer := bytes.NewBuffer(data)
+			err_ := binary.Read(buffer, binary.BigEndian, &ch)
+			if err_ != nil {
+				Error("MKDIR", "Error al leer el archivo")
+				return -1
+			}
+			if ch == '0' {
+				file.Close()
+				return int64(i)
+			}
+		}
+	}
+	return -1
 }

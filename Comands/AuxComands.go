@@ -83,13 +83,13 @@ func CreateFile(nameFile string) {
 	var _, err = os.Stat(nameFile)
 
 	if os.IsNotExist(err) {
-		var file, err = os.Create(nameFile)
-		if err != nil {
+		var file, err_2 = os.Create(nameFile)
+		if err_2 != nil {
 			return
 		}
 		defer file.Close()
 	}
-	fmt.Println(("Archivo generado exitosamente"))
+	// fmt.Println(("Archivo generado exitosamente"))
 }
 
 func WriteFile(content string, nameFile string) {
@@ -106,12 +106,11 @@ func WriteFile(content string, nameFile string) {
 	if err != nil {
 		return
 	}
-	fmt.Println("Archivo guardado exitosamente.")
 }
 
-func Execute(nameFile string, file string) {
+func Execute(nameFile string, file string, extension string) {
 	path, _ := exec.LookPath("dot")
-	cmd, _ := exec.Command(path, "-Tjpg", file).Output()
+	cmd, _ := exec.Command(path, "-T"+extension, file).Output()
 	mode := int(0777)
 	_ = os.WriteFile(nameFile, cmd, os.FileMode(mode))
 }

@@ -5,8 +5,11 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"io/ioutil"
+	"log"
 	"math"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 	"unsafe"
@@ -41,6 +44,10 @@ func DataRep(context []string) {
 		repSuperBlock(id, pathOut)
 	} else if Compare(name, "disk") {
 		repDisk(id, pathOut)
+	} else if Compare(name, "bm_inode") {
+		repBM(id, pathOut, "BI")
+	} else if Compare(name, "bm_bloc") {
+		repBM(id, pathOut, "BB")
 	}
 }
 
@@ -152,6 +159,15 @@ func repSuperBlock(id string, pathOut string) {
 		return
 	}
 
+	aux := strings.Split(path, ".")
+	if len(aux) > 2 {
+		Error("REP", "No se admiten nombres de archivos que contengan puntos")
+		return
+	}
+	pd := aux[0] + "_sb" + ".dot"
+
+	CreateFile(pd)
+
 	super := Structs.NewSuperBlock()
 	file.Seek(partition.Part_start, 0)
 	data := readBytes(file, int(unsafe.Sizeof(Structs.SuperBlock{})))
@@ -188,6 +204,10 @@ func repSuperBlock(id string, pathOut string) {
 	text += "> ]\n"
 	text += "}\n"
 	// fmt.Println(text)
+
+	termination := strings.Split(pathOut, ".")
+	WriteFile(text, pd)
+	Execute(pathOut, pd, termination[1])
 }
 
 func repDisk(id string, pathOut string) {
@@ -210,12 +230,15 @@ func repDisk(id string, pathOut string) {
 	}
 	file.Close()
 
-	aux := strings.Split(path, ".")
+	aux := strings.Split(pathOut, ".")
 	if len(aux) > 2 {
 		Error("REP", "No se admiten nombres de archivos que contengan puntos")
 		return
 	}
 	pd := aux[0] + ".dot"
+
+	// pd := aux[0] + string(id[0]) + "_disk" + ".dot"
+	// CreateFile(pd)
 
 	folder := ""
 	address := strings.Split(pd, "/")
@@ -365,21 +388,124 @@ func repDisk(id string, pathOut string) {
 	content += "> ]\n"
 	content += "}\n"
 
-	fmt.Println(content)
+	// fmt.Println(content)
+
+	b := []byte(content)
+	err_ = ioutil.WriteFile(pd, b, 0644)
+	if err_ != nil {
+		log.Fatal(err_)
+	}
+
+	termination := strings.Split(path, ".")
 	/*
-		b := []byte(content)
-		err_ = ioutil.WriteFile(pd, b, 0644)
-		if err_ != nil {
-			log.Fatal(err_)
-		}
-
-		termination := strings.Split(pathOut, ".")
-		path2, _ := exec.LookPath("dot")
-		cmd, _ := exec.Command(path2, "-T"+termination[1], pd).Output()
-		mode := int(0777)
-		ioutil.WriteFile(pathOut, cmd, os.FileMode(mode))
-		disco := strings.Split(path, "/")
-		Message("REP", "Reporte tipo DISK del disco "+disco[len(disco)-1]+", creado correctamente")
-
+		WriteFile(content, pd)
+		Execute(pathOut, pd, termination[1])
 	*/
+
+	path2, _ := exec.LookPath("dot")
+	cmd, _ := exec.Command(path2, "-T"+termination[1], pd).Output()
+	mode := int(0777)
+	ioutil.WriteFile(pathOut, cmd, os.FileMode(mode))
+	disco := strings.Split(path, "/")
+	Message("REP", "Reporte tipo DISK del disco "+disco[len(disco)-1]+", creado correctamente")
+
+}
+
+func repBM(id string, pathOut, t string) {
+	if !(id[2] == '3' && id[3] == '1') {
+		Error("REP", "El primer identificador no es válido")
+		return
+	}
+
+	var path string
+	partition := GetMount("MKGRP", Logged.Id, &path)
+	if string(partition.Part_status) == "0" {
+		Error("REP", "No se encontró la partición montada con el id: "+Logged.Id)
+		return
+	}
+
+	file, err := os.Open(strings.ReplaceAll(path, "\"", ""))
+	if err != nil {
+		Error("REP", "No se ha encontrado el disco")
+		return
+	}
+
+	super := Structs.NewSuperBlock()
+	file.Seek(partition.Part_start, 0)
+	data := readBytes(file, int(unsafe.Sizeof(Structs.SuperBlock{})))
+	buffer := bytes.NewBuffer(data)
+	err_ := binary.Read(buffer, binary.BigEndian, &super)
+	if err_ != nil {
+		Error("REP", "Error al leer el archivo")
+		return
+	}
+
+	CreateFile(pathOut)
+	content := ""
+	counter := 1
+	ch := '2'
+	if t == "BI" {
+		file.Seek(super.S_bm_inode_start, 0)
+		for i := 0; i < int(super.S_inodes_count); i++ {
+			data = readBytes(file, int(unsafe.Sizeof(ch)))
+			buffer = bytes.NewBuffer(data)
+			err_ = binary.Read(buffer, binary.BigEndian, &ch)
+			if err_ != nil {
+				Error("REP", "Error al leer el archivo")
+				return
+			}
+
+			element := fromBMtoFile(strconv.Itoa(int(ch)))
+			if element == "-1" {
+				break
+			}
+			if counter == 20 {
+				content += element + "\n"
+				counter = 1
+			} else {
+				content += element
+				counter++
+			}
+		}
+	} else {
+		file.Seek(super.S_bm_block_start, 0)
+		for i := 0; i < int(super.S_inodes_count); i++ {
+			data = readBytes(file, int(unsafe.Sizeof(ch)))
+			buffer = bytes.NewBuffer(data)
+			err_ = binary.Read(buffer, binary.BigEndian, &ch)
+			if err_ != nil {
+				Error("REP", "Error al leer el archivo")
+				return
+			}
+			element := fromBMtoFile(strconv.Itoa(int(ch)))
+			if element == "-1" {
+				break
+			}
+			if counter == 20 {
+				content += element + "\n"
+				counter = 1
+			} else {
+				content += element
+				counter++
+			}
+		}
+	}
+
+	WriteFile(content, pathOut)
+	if t == "BI" {
+		Message("REP", "Reporte de los bitmaps de Inodos "+pathOut+", creado correctamente")
+	} else {
+		Message("REP", "Reporte de los bitmaps de bloques "+pathOut+", creado correctamente")
+	}
+}
+
+func fromBMtoFile(ch string) string {
+	if ch == "48" {
+		return "0"
+	} else if ch == "49" {
+		return "1"
+	} else {
+		return "-1"
+	}
+	return "-1"
 }
