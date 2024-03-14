@@ -50,6 +50,8 @@ func DataRep(context []string) {
 		repBM(id, pathOut, "BB")
 	} else if Compare(name, "inode") {
 		repInode(id, pathOut)
+	} else if Compare(name, "block") {
+		repBlock(id, pathOut)
 	}
 
 	//
@@ -619,6 +621,167 @@ func repInode(id string, pathOut string) {
 	}
 	content += "}"
 
+	content += "\n"
+	content += "}\n"
+
+	fmt.Println(content)
+}
+
+func repBlock(id string, pathOut string) {
+	if !(id[2] == '3' && id[3] == '1') {
+		Error("REP", "El primer identificador no es válido")
+		return
+	}
+
+	super := Structs.NewSuperBlock()
+	inode := Structs.NewInodos()
+	folder := Structs.NewDirectoriesBlocks()
+
+	var path string
+	partition := GetMount("MKGRP", Logged.Id, &path)
+	if string(partition.Part_status) == "0" {
+		Error("REP", "No se encontró la partición montada con el id: "+Logged.Id)
+		return
+	}
+
+	file, err := os.Open(strings.ReplaceAll(path, "\"", ""))
+	if err != nil {
+		Error("REP", "No se ha encontrado el disco")
+		return
+	}
+
+	file.Seek(partition.Part_start, 0)
+	data := readBytes(file, int(unsafe.Sizeof(Structs.SuperBlock{})))
+	buffer := bytes.NewBuffer(data)
+	err_ := binary.Read(buffer, binary.BigEndian, &super)
+	if err_ != nil {
+		Error("REP", "Error al leer el archivo")
+		return
+	}
+
+	var inodes []Structs.Inodos
+	inode = Structs.NewInodos()
+	file.Seek(super.S_inode_start, 0)
+	for i := 0; i < int(super.S_inodes_count); i++ {
+		data = readBytes(file, int(unsafe.Sizeof(Structs.Inodos{})))
+		buffer = bytes.NewBuffer(data)
+		err_ = binary.Read(buffer, binary.BigEndian, &inode)
+		if err_ != nil {
+			Error("REP", "Error al leer el archivo")
+			return
+		}
+
+		if inode.I_uid == -1 {
+			break
+		}
+		inodes = append(inodes, inode)
+	}
+
+	counter := 0
+	content := "digraph Bloques{\n"
+	content += "node [ shape=plaintext fontname=Arial ]\n"
+
+	file.Seek(super.S_inode_start, 0)
+	for v := 0; v < len(inodes); v++ {
+		file.Seek(super.S_inode_start+int64(unsafe.Sizeof(Structs.Inodos{}))*int64(v), 0)
+		data = readBytes(file, int(unsafe.Sizeof(Structs.Inodos{})))
+		buffer = bytes.NewBuffer(data)
+		err_ = binary.Read(buffer, binary.BigEndian, &inode)
+		if err_ != nil {
+			Error("MKDIR", "Error al leer el archivo")
+			return
+		}
+		if inode.I_type == 0 {
+			for i := 0; i < 16; i++ {
+				if i < 16 {
+					if inode.I_block[i] != -1 {
+						folder = Structs.NewDirectoriesBlocks()
+						file.Seek(super.S_block_start+int64(unsafe.Sizeof(Structs.DirectoriesBlocks{}))*inode.I_block[i]+int64(unsafe.Sizeof(Structs.FilesBlocks{}))*32*inode.I_block[i], 0)
+
+						data = readBytes(file, int(unsafe.Sizeof(Structs.DirectoriesBlocks{})))
+						buffer = bytes.NewBuffer(data)
+						err_ = binary.Read(buffer, binary.BigEndian, &folder)
+						if err_ != nil {
+							Error("MKDIR", "Error al leer el archivo")
+							return
+						}
+
+						content += "\nA" + strconv.Itoa(counter)
+						content += "[label= <"
+						content += "<table border=\"1\" cellborder=\"0\">\n"
+						content += "<tr><td colspan=\"2\" >Bloque Carpeta " + strconv.Itoa(counter) + "</td></tr>\n"
+						content += "<tr><td>B_name</td><td>B_Inodo</td></tr>\n"
+						for j := 0; j < 4; j++ {
+							name := ""
+							for nam := 0; nam < len(folder.B_content[j].B_name); nam++ {
+								if folder.B_content[j].B_name[nam] == 0 {
+									continue
+								}
+								name += string(folder.B_content[j].B_name[nam])
+							}
+							content += "<tr><td>" + name + "</td><td>" + strconv.Itoa(int(folder.B_content[j].B_inodo)) + "</td></tr>\n"
+						}
+						content += "</table>\n"
+						content += ">]"
+						counter++
+					}
+				}
+			}
+		} else if inode.I_type == 1 {
+			for i := 0; i < 16; i++ {
+				if i < 16 {
+					if inode.I_block[i] != -1 {
+						var folderAux Structs.FilesBlocks
+						// +int64(unsafe.Sizeof(Structs.FilesBlocks{}))*32*inode.I_block[i]
+						file.Seek(super.S_block_start+int64(unsafe.Sizeof(Structs.DirectoriesBlocks{})), 0)
+
+						data = readBytes(file, int(unsafe.Sizeof(Structs.FilesBlocks{})))
+						buffer = bytes.NewBuffer(data)
+						err_ = binary.Read(buffer, binary.BigEndian, &folderAux)
+						if err_ != nil {
+							Error("MKDIR", "Error al leer el archivo")
+							return
+						}
+
+						content += "\nA" + strconv.Itoa(counter)
+						content += "[label= <"
+						content += "<table border=\"1\" cellborder=\"0\">\n"
+						content += "<tr><td> Bloque Archivo " + strconv.Itoa(counter) + "</td></tr>\n"
+						folderContent := ""
+						for k := 0; k < len(folderAux.B_content); k++ {
+							if folderAux.B_content[k] != 0 {
+								folderContent += string(folderAux.B_content[k])
+							}
+						}
+						content += "<tr><td>" + folderContent + "</td></tr>\n"
+						content += "</table>\n"
+						content += ">]"
+						counter++
+					}
+				}
+			}
+		} else {
+			continue
+		}
+
+	}
+
+	content += "\n"
+
+	for i := 0; i < counter; i++ {
+		if i == 0 {
+			content += "A" + strconv.Itoa(i)
+		} else {
+			content += " -> " + "A" + strconv.Itoa(i)
+		}
+	}
+
+	content += "\n"
+	content += "{ rank=same "
+	for i := 0; i < counter; i++ {
+		content += "A" + strconv.Itoa(i) + " "
+	}
+	content += "}"
 	content += "\n"
 	content += "}\n"
 

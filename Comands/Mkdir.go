@@ -237,7 +237,7 @@ func mkdir(path []string, r bool, partition Structs.Partition, pth string) {
 						copy(inodetmp.I_ctime[:], dateNow)
 						copy(inodetmp.I_mtime[:], dateNow)
 						inodetmp.I_type = 0
-						inodetmp.I_type = 664
+						inodetmp.I_perm = 664
 						inodetmp.I_block[0] = bb
 
 						copy(foldertmp.B_content[0].B_name[:], ".")
