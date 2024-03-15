@@ -5,11 +5,9 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"io/ioutil"
-	"log"
 	"math"
 	"os"
-	"os/exec"
+	"regexp"
 	"strconv"
 	"strings"
 	"unsafe"
@@ -53,18 +51,23 @@ func DataRep(context []string) {
 	} else if Compare(name, "block") {
 		repBlock(id, pathOut)
 	}
-
-	//
 }
 
-// PENDIENTE CREAR ARCHIVO IMAGEN
 func repMBR(id string, pathOut string) {
 	if !(id[2] == '3' && id[3] == '1') {
 		Error("REP", "El primer identificador no es válido")
 		return
 	}
 	letter := id[0]
-	driveLetter := "/home/fernando/Documentos/Universidad/LaboratorioArchivos/Proyectos/Proyecto1/MIA/P1/" + string(letter) + ".dsk"
+	currentPath, _ := os.Getwd()
+	driveLetter := currentPath + "/MIA/P1/" + string(letter) + ".dsk"
+
+	aux := strings.Split(pathOut, ".")
+	if len(aux) > 2 {
+		Error("REP", "No se admiten nombres de archivos que contengan puntos")
+		return
+	}
+	pd := aux[0] + ".dot"
 
 	var partitions [4]Structs.Partition
 	var logicPartitions []Structs.EBR
@@ -141,9 +144,12 @@ func repMBR(id string, pathOut string) {
 	text += "</table>\n"
 	text += "> ]\n"
 	text += "}\n"
-	// fmt.Println(text)
-	// CreateFile(pathOut)
-	// WriteFile(text, pathOut)
+
+	CreateFile(pd)
+	WriteFile(text, pd)
+	termination := strings.Split(pathOut, ".")
+	Execute(pathOut, pd, termination[1])
+	Message("REP", "Reporte de MBR se ha generado correctamente en"+pathOut)
 }
 
 func repSuperBlock(id string, pathOut string) {
@@ -170,9 +176,7 @@ func repSuperBlock(id string, pathOut string) {
 		Error("REP", "No se admiten nombres de archivos que contengan puntos")
 		return
 	}
-	pd := aux[0] + "_sb" + ".dot"
-
-	CreateFile(pd)
+	pd := aux[0] + ".dot"
 
 	super := Structs.NewSuperBlock()
 	file.Seek(partition.Part_start, 0)
@@ -209,11 +213,15 @@ func repSuperBlock(id string, pathOut string) {
 	text += "</table>\n"
 	text += "> ]\n"
 	text += "}\n"
-	// fmt.Println(text)
 
-	termination := strings.Split(pathOut, ".")
+	file.Close()
+
+	CreateFile(pd)
 	WriteFile(text, pd)
+	termination := strings.Split(pathOut, ".")
 	Execute(pathOut, pd, termination[1])
+	Message("REP", "Reporte de Superbloque se ha generado correctamente en"+pathOut)
+
 }
 
 func repDisk(id string, pathOut string) {
@@ -242,9 +250,6 @@ func repDisk(id string, pathOut string) {
 		return
 	}
 	pd := aux[0] + ".dot"
-
-	// pd := aux[0] + string(id[0]) + "_disk" + ".dot"
-	// CreateFile(pd)
 
 	folder := ""
 	address := strings.Split(pd, "/")
@@ -360,7 +365,7 @@ func repDisk(id string, pathOut string) {
 			tmpLogic += "<td>\"Libre \n " + s + "% de la partición extendida \"</td>\n"
 			logic++
 		}
-		tmpLogic += "</tr>\n\n"
+		tmpLogic += "</tr>\n"
 		logic += 2
 	}
 	var tamPrim int64
@@ -394,27 +399,11 @@ func repDisk(id string, pathOut string) {
 	content += "> ]\n"
 	content += "}\n"
 
-	// fmt.Println(content)
-
-	b := []byte(content)
-	err_ = ioutil.WriteFile(pd, b, 0644)
-	if err_ != nil {
-		log.Fatal(err_)
-	}
-
-	termination := strings.Split(path, ".")
-	/*
-		WriteFile(content, pd)
-		Execute(pathOut, pd, termination[1])
-	*/
-
-	path2, _ := exec.LookPath("dot")
-	cmd, _ := exec.Command(path2, "-T"+termination[1], pd).Output()
-	mode := int(0777)
-	ioutil.WriteFile(pathOut, cmd, os.FileMode(mode))
-	disco := strings.Split(path, "/")
-	Message("REP", "Reporte tipo DISK del disco "+disco[len(disco)-1]+", creado correctamente")
-
+	CreateFile(pd)
+	WriteFile(content, pd)
+	termination := strings.Split(pathOut, ".")
+	Execute(pathOut, pd, termination[1])
+	Message("REP", "Reporte del Disco se ha generado correctamente en"+pathOut)
 }
 
 func repBM(id string, pathOut, t string) {
@@ -535,6 +524,13 @@ func repInode(id string, pathOut string) {
 		return
 	}
 
+	aux := strings.Split(pathOut, ".")
+	if len(aux) > 2 {
+		Error("REP", "No se admiten nombres de archivos que contengan puntos")
+		return
+	}
+	pd := aux[0] + ".dot"
+
 	super := Structs.NewSuperBlock()
 	file.Seek(partition.Part_start, 0)
 	data := readBytes(file, int(unsafe.Sizeof(Structs.SuperBlock{})))
@@ -567,7 +563,7 @@ func repInode(id string, pathOut string) {
 	}
 
 	for i := 0; i < len(inodes); i++ {
-		content += "\nA" + strconv.Itoa(i)
+		content += "A" + strconv.Itoa(i)
 		content += "[label= <"
 		content += "<table border=\"1\" cellborder=\"0\">\n"
 		content += "<tr><td colspan=\"2\" >Inodo " + strconv.Itoa(i) + "</td></tr>\n"
@@ -596,7 +592,7 @@ func repInode(id string, pathOut string) {
 		}
 		content += "<tr><td>I_mtime</td><td>" + mtime + "</td></tr>\n"
 		for j := 0; j < len(inodes[i].I_block); j++ {
-			content += "<tr><td>I_block " + string(i+1) + " </td><td>" + strconv.Itoa(int(inodes[i].I_block[j])) + "</td></tr>\n"
+			content += "<tr><td>I_block " + strconv.Itoa(i+1) + " </td><td>" + strconv.Itoa(int(inodes[i].I_block[j])) + "</td></tr>\n"
 		}
 		content += "<tr><td>I_type</td><td>" + strconv.Itoa(int(inodes[i].I_type)) + "</td></tr>\n"
 		content += "<tr><td>I_perm</td><td>" + strconv.Itoa(int(inodes[i].I_perm)) + "</td></tr>\n"
@@ -624,7 +620,11 @@ func repInode(id string, pathOut string) {
 	content += "\n"
 	content += "}\n"
 
-	fmt.Println(content)
+	CreateFile(pd)
+	WriteFile(content, pd)
+	termination := strings.Split(pathOut, ".")
+	Execute(pathOut, pd, termination[1])
+	Message("REP", "Reporte de Inodos se ha generado correctamente en"+pathOut)
 }
 
 func repBlock(id string, pathOut string) {
@@ -649,6 +649,13 @@ func repBlock(id string, pathOut string) {
 		Error("REP", "No se ha encontrado el disco")
 		return
 	}
+
+	aux := strings.Split(pathOut, ".")
+	if len(aux) > 2 {
+		Error("REP", "No se admiten nombres de archivos que contengan puntos")
+		return
+	}
+	pd := aux[0] + ".dot"
 
 	file.Seek(partition.Part_start, 0)
 	data := readBytes(file, int(unsafe.Sizeof(Structs.SuperBlock{})))
@@ -748,7 +755,13 @@ func repBlock(id string, pathOut string) {
 						content += "<tr><td> Bloque Archivo " + strconv.Itoa(counter) + "</td></tr>\n"
 						folderContent := ""
 						for k := 0; k < len(folderAux.B_content); k++ {
-							if folderAux.B_content[k] != 0 {
+							if folderAux.B_content[k] == 0 {
+								continue
+							}
+							regex := regexp.MustCompile(`^[a-zA-Z0-9áéíóúüñ,]+$`)
+							if !regex.MatchString(string(folderAux.B_content[k])) {
+								continue
+							} else {
 								folderContent += string(folderAux.B_content[k])
 							}
 						}
@@ -784,5 +797,9 @@ func repBlock(id string, pathOut string) {
 	content += "\n"
 	content += "}\n"
 
-	fmt.Println(content)
+	CreateFile(pd)
+	WriteFile(content, pd)
+	termination := strings.Split(pathOut, ".")
+	Execute(pathOut, pd, termination[1])
+	Message("REP", "Reporte de Bloques se ha generado correctamente en"+pathOut)
 }

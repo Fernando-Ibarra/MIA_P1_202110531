@@ -35,8 +35,9 @@ func DataMount(tokens []string) {
 		if Compare(command[0], "name") {
 			name = command[1]
 		} else if Compare(command[0], "driveletter") {
+			currentPath, _ := os.Getwd()
 			letter = command[1]
-			driveLetter = "/home/fernando/Documentos/Universidad/LaboratorioArchivos/Proyectos/Proyecto1/MIA/P1/" + command[1] + ".dsk"
+			driveLetter = currentPath + "/MIA/P1/" + command[1] + ".dsk"
 		}
 	}
 	if driveLetter == "" || name == "" {

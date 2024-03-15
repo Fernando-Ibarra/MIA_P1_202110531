@@ -79,6 +79,7 @@ func readDisk(path string) *Structs.MBR {
 	var mDir *Structs.MBR = &mbr
 	return mDir
 }
+
 func CreateFile(nameFile string) {
 	var _, err = os.Stat(nameFile)
 
@@ -89,7 +90,6 @@ func CreateFile(nameFile string) {
 		}
 		defer file.Close()
 	}
-	// fmt.Println(("Archivo generado exitosamente"))
 }
 
 func WriteFile(content string, nameFile string) {
@@ -111,6 +111,7 @@ func WriteFile(content string, nameFile string) {
 func Execute(nameFile string, file string, extension string) {
 	path, _ := exec.LookPath("dot")
 	cmd, _ := exec.Command(path, "-T"+extension, file).Output()
-	mode := int(0777)
+	mode := 0777
 	_ = os.WriteFile(nameFile, cmd, os.FileMode(mode))
+	Message("REP", "Archivo "+nameFile+", se ha generado correctamente")
 }

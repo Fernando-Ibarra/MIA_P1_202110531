@@ -25,7 +25,7 @@ func DataFDISK(tokens []string) {
 	unit := "k"
 	driveLetter := ""
 	tipo := "P"
-	fit := "w"
+	fit := "WF"
 	name := ""
 	add := ""
 	deleteP := ""
@@ -37,7 +37,8 @@ func DataFDISK(tokens []string) {
 		} else if Compare(tk[0], "unit") {
 			unit = tk[1]
 		} else if Compare(tk[0], "driveletter") {
-			driveLetter = "/home/fernando/Documentos/Universidad/LaboratorioArchivos/Proyectos/Proyecto1/MIA/P1/" + tk[1] + ".dsk"
+			currentPath, _ := os.Getwd()
+			driveLetter = currentPath + "/MIA/P1/" + tk[1] + ".dsk"
 		} else if Compare(tk[0], "type") {
 			tipo = tk[1]
 		} else if Compare(tk[0], "fit") {
@@ -93,7 +94,7 @@ func generatePartition(s string, u string, d string, t string, f string, n strin
 		Error("FDISK", "Type no contiene los valores esperados")
 		return
 	}
-	if !(Compare(f, "b") || Compare(f, "f") || Compare(f, "w")) {
+	if !(Compare(f, "bf") || Compare(f, "ff") || Compare(f, "wf")) {
 		Error("FDISK", "Fit no contiene los valores esperados")
 	}
 
@@ -262,10 +263,11 @@ func deletePartition(de string, d string, n string) {
 					}
 				}
 				if Compare(nameE, n) {
-					logicPos := ebr.Part_start + int64(unsafe.Sizeof(Structs.EBR{}))
-
+					logicPartitionStart := ebr.Part_start + int64(unsafe.Sizeof(Structs.EBR{}))
 					var zero int8 = 0
 					newEbr := Structs.NewEBR()
+					newEbr.Part_fit = '0'
+					newEbr.Part_start = ebr.Part_start
 					newEbr.Part_next = ebr.Part_next
 					file.Seek(ebr.Part_start, 0)
 					var binaryEbr bytes.Buffer
@@ -274,7 +276,7 @@ func deletePartition(de string, d string, n string) {
 
 					size := int(ebr.Part_s)
 					for j := 0; j < size; j++ {
-						file.Seek(logicPos+int64(j), 0)
+						file.Seek(logicPartitionStart+int64(j), 0)
 						var binaryZero bytes.Buffer
 						binary.Write(&binaryZero, binary.BigEndian, zero)
 						WrittingBytes(file, binaryZero.Bytes())
@@ -290,31 +292,31 @@ func deletePartition(de string, d string, n string) {
 	if founded && !deletedL {
 		if c == 0 {
 			mbr.Mbr_partitions_1 = Structs.NewPartition()
-			mbr.Mbr_partitions_1.Part_fit = 0
-			mbr.Mbr_partitions_1.Part_type = 0
-			mbr.Mbr_partitions_1.Part_status = 0
-			mbr.Mbr_partitions_1.Part_start = 0
+			mbr.Mbr_partitions_1.Part_fit = '0'
+			mbr.Mbr_partitions_1.Part_type = '0'
+			mbr.Mbr_partitions_1.Part_status = '0'
+			mbr.Mbr_partitions_1.Part_start = -1
 			mbr.Mbr_partitions_1.Part_s = 0
 		} else if c == 1 {
 			mbr.Mbr_partitions_2 = Structs.NewPartition()
-			mbr.Mbr_partitions_2.Part_fit = 0
-			mbr.Mbr_partitions_2.Part_type = 0
-			mbr.Mbr_partitions_2.Part_status = 0
-			mbr.Mbr_partitions_2.Part_start = 0
+			mbr.Mbr_partitions_2.Part_fit = '0'
+			mbr.Mbr_partitions_2.Part_type = '0'
+			mbr.Mbr_partitions_2.Part_status = '0'
+			mbr.Mbr_partitions_2.Part_start = -1
 			mbr.Mbr_partitions_2.Part_s = 0
 		} else if c == 2 {
 			mbr.Mbr_partitions_3 = Structs.NewPartition()
-			mbr.Mbr_partitions_3.Part_fit = 0
-			mbr.Mbr_partitions_3.Part_type = 0
-			mbr.Mbr_partitions_3.Part_status = 0
-			mbr.Mbr_partitions_3.Part_start = 0
+			mbr.Mbr_partitions_3.Part_fit = '0'
+			mbr.Mbr_partitions_3.Part_type = '0'
+			mbr.Mbr_partitions_3.Part_status = '0'
+			mbr.Mbr_partitions_3.Part_start = -1
 			mbr.Mbr_partitions_3.Part_s = 0
 		} else if c == 3 {
 			mbr.Mbr_partitions_4 = Structs.NewPartition()
-			mbr.Mbr_partitions_4.Part_fit = 0
-			mbr.Mbr_partitions_4.Part_type = 0
-			mbr.Mbr_partitions_4.Part_status = 0
-			mbr.Mbr_partitions_4.Part_start = 0
+			mbr.Mbr_partitions_4.Part_fit = '0'
+			mbr.Mbr_partitions_4.Part_type = '0'
+			mbr.Mbr_partitions_4.Part_status = '0'
+			mbr.Mbr_partitions_4.Part_start = -1
 			mbr.Mbr_partitions_4.Part_s = 0
 		}
 		file.Seek(0, 0)
@@ -528,12 +530,12 @@ func fitF(mbr Structs.MBR, p Structs.Partition, t []Transition, ps []Structs.Par
 				continue
 			}
 
-			if Compare(string(mbr.Dsk_fit[0]), "f") {
+			if Compare(string(mbr.Dsk_fit[0]), "F") {
 				if int64(use.before) >= p.Part_s || int64(use.after) >= p.Part_s {
 					break
 				}
 				use = tr
-			} else if Compare(string(mbr.Dsk_fit[0]), "b") {
+			} else if Compare(string(mbr.Dsk_fit[0]), "B") {
 				if int64(tr.before) >= p.Part_s || int64(use.after) < p.Part_s {
 					use = tr
 				} else {
@@ -549,7 +551,7 @@ func fitF(mbr Structs.MBR, p Structs.Partition, t []Transition, ps []Structs.Par
 						use = tr
 					}
 				}
-			} else if Compare(string(mbr.Dsk_fit[0]), "w") {
+			} else if Compare(string(mbr.Dsk_fit[0]), "W") {
 				if int64(use.before) >= p.Part_s || int64(use.after) < p.Part_s {
 					use = tr
 				} else {
@@ -570,7 +572,7 @@ func fitF(mbr Structs.MBR, p Structs.Partition, t []Transition, ps []Structs.Par
 			c++
 		}
 		if use.before >= int(p.Part_s) || use.after >= int(p.Part_s) {
-			if Compare(string(mbr.Dsk_fit[0]), "f") {
+			if Compare(string(mbr.Dsk_fit[0]), "F") {
 				if use.before >= int(p.Part_s) {
 					p.Part_start = int64(use.start - use.before)
 					startValue = int(p.Part_start)
@@ -578,7 +580,7 @@ func fitF(mbr Structs.MBR, p Structs.Partition, t []Transition, ps []Structs.Par
 					p.Part_start = int64(use.end)
 					startValue = int(p.Part_start)
 				}
-			} else if Compare(string(mbr.Dsk_fit[0]), "b") {
+			} else if Compare(string(mbr.Dsk_fit[0]), "B") {
 				b1 := use.before - int(p.Part_s)
 				a1 := use.after - int(p.Part_s)
 
@@ -589,7 +591,7 @@ func fitF(mbr Structs.MBR, p Structs.Partition, t []Transition, ps []Structs.Par
 					p.Part_start = int64(use.end)
 					startValue = int(p.Part_start)
 				}
-			} else if Compare(string(mbr.Dsk_fit[0]), "w") {
+			} else if Compare(string(mbr.Dsk_fit[0]), "W") {
 				b1 := use.before - int(p.Part_s)
 				a1 := use.after - int(p.Part_s)
 

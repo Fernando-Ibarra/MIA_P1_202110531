@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"crypto/rand"
 	"encoding/binary"
+	"fmt"
 	"math/big"
 	"os"
 	"strconv"
@@ -13,11 +14,12 @@ import (
 )
 
 func DataMKDISK(tokens []string, counterDisks int) {
-	size := "" // required
-	fit := ""  // optional
-	unit := "" // optional
-	var nameDisk string = string(getNameDisk(counterDisks)) + ".dsk"
-	path := "/home/fernando/Documentos/Universidad/LaboratorioArchivos/Proyectos/Proyecto1/MIA/P1/" + nameDisk // default
+	size := ""
+	fit := ""
+	unit := ""
+	currentPath, _ := os.Getwd()
+	path := currentPath + "/MIA/P1/" + string(getNameDisk(counterDisks)) + ".dsk"
+	fmt.Println(path)
 	error_ := false
 	for i := 0; i < len(tokens); i++ {
 		token := tokens[i]
@@ -50,7 +52,7 @@ func DataMKDISK(tokens []string, counterDisks int) {
 		}
 	}
 	if fit == "" {
-		fit = "F"
+		fit = "FF"
 	}
 
 	if unit == "" {
@@ -64,7 +66,7 @@ func DataMKDISK(tokens []string, counterDisks int) {
 	if size == "" {
 		Error("MKDISK", "Se requiere párametro Size para este comando de forma obligatoria")
 		return
-	} else if !Compare(fit, "B") && !Compare(fit, "F") && !Compare(fit, "W") {
+	} else if !Compare(fit, "BF") && !Compare(fit, "FF") && !Compare(fit, "WF") {
 		Error("MKDISK", "Se obtuvo un valor de fit no esperado")
 		return
 	} else if !Compare(unit, "k") && !Compare(unit, "m") {
@@ -113,9 +115,19 @@ func makeFile(s string, f string, u string, path string) {
 		return
 	}
 
+	folder := ""
+	address := strings.Split(path, "/")
+	for i := 0; i < len(address)-1; i++ {
+		folder += "/" + address[i]
+		if _, err_ := os.Stat(folder); os.IsNotExist(err_) {
+			os.Mkdir(folder, 0777)
+		}
+	}
+
 	file, err := os.Create(path)
 	defer file.Close()
 	if err != nil {
+		fmt.Println(err)
 		Error("MKDISK", "No se pudo crear el disco")
 		return
 	}
@@ -146,11 +158,16 @@ func makeFile(s string, f string, u string, path string) {
 }
 
 func getNameDisk(number int) string {
-	if number >= 1 && number <= 26 {
-		letter := string('A' - 1 + number)
-		return letter
+	if number <= 26 {
+		return string(rune('A' - 1 + number))
 	}
-	return ""
+	firstLetter := 'A' + (number-1)/26 - 1
+	secondLetter := 'A' + (number-1)%26
+	if secondLetter == 'A'-1 {
+		secondLetter = 'Z'
+		firstLetter++
+	}
+	return string(rune(firstLetter)) + string(rune(secondLetter))
 }
 
 func RMDISK(tokens []string) {
@@ -166,7 +183,8 @@ func RMDISK(tokens []string) {
 		tk := strings.Split(token, "=")
 		if Compare(tk[0], "driveletter") {
 			if driveLetter == "" {
-				driveLetter = "/home/fernando/Documentos/Universidad/LaboratorioArchivos/Proyectos/Proyecto1/MIA/P1/" + tk[1] + ".dsk"
+				currentPath, _ := os.Getwd()
+				driveLetter = currentPath + "/MIA/P1/" + tk[1] + ".dsk"
 				nameDisk = tk[1]
 			} else {
 				Error("RMDISK", "Parámetro driveletter repetido en el comando: "+tk[0])
