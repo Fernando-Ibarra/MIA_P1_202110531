@@ -45,7 +45,7 @@ func mkfile(path []string, r bool, partition Structs.Partition, pth string, s st
 
 	content := ""
 	for i := 0; i < size; i++ {
-		content += string(rune(i))
+		content += strconv.Itoa(i)
 	}
 
 	file, err := os.Open(strings.ReplaceAll(pth, "\"", ""))
@@ -98,6 +98,7 @@ func mkfile(path []string, r bool, partition Structs.Partition, pth string, s st
 	path = aux
 	var stack string
 	fileWritten := false
+	fatherSpace := false
 
 	for v := 0; v < len(path)-1; v++ {
 		fnd = false
@@ -259,6 +260,24 @@ func mkfile(path []string, r bool, partition Structs.Partition, pth string, s st
 							folder.B_content[j].B_inodo = bi
 							copy(folder.B_content[j].B_name[:], newf)
 
+							inodeFile.I_uid = int64(Logged.Uid)
+							inodeFile.I_gid = int64(Logged.Gid)
+							inodeFile.I_s = int64(unsafe.Sizeof(Structs.DirectoriesBlocks{}))
+
+							dateNow2 := time.Now().String()
+							copy(inodeFile.I_atime[:], spr.S_mtime[:])
+							copy(inodeFile.I_ctime[:], dateNow2)
+							copy(inodeFile.I_mtime[:], dateNow2)
+							inodeFile.I_type = 0
+							inodeFile.I_perm = 664
+							inodeFile.I_block[0] = bb + 2
+
+							fileBlock = Structs.FilesBlocks{}
+
+							copy(fileBlock.B_content[:], content)
+
+							fileWritten = true
+							fatherSpace = true
 							fnd = true
 							i = 20
 							break
@@ -360,6 +379,7 @@ func mkfile(path []string, r bool, partition Structs.Partition, pth string, s st
 						for k := 0; k < len(content); k++ {
 							fileBlock.B_content[k] = content[k]
 						}
+						fileWritten = true
 						file.Close()
 						inode.I_block[i] = past
 						file, err = os.OpenFile(strings.ReplaceAll(pth, "\"", ""), os.O_WRONLY, os.ModeAppend)
@@ -430,28 +450,62 @@ func mkfile(path []string, r bool, partition Structs.Partition, pth string, s st
 		return
 	}
 
-	file.Seek(spr.S_inode_start+int64(unsafe.Sizeof(Structs.Inodos{}))*bi, 0)
-	var binInodeTmp bytes.Buffer
-	binary.Write(&binInodeTmp, binary.BigEndian, inodetmp)
-	WrittingBytes(file, binInodeTmp.Bytes())
+	if fileWritten {
+		if fatherSpace {
+			file.Seek(spr.S_inode_start+int64(unsafe.Sizeof(Structs.Inodos{}))*bi, 0)
+			var binInodeTmp bytes.Buffer
+			binary.Write(&binInodeTmp, binary.BigEndian, inodetmp)
+			WrittingBytes(file, binInodeTmp.Bytes())
 
-	file.Seek(spr.S_block_start+int64(unsafe.Sizeof(Structs.DirectoriesBlocks{}))*bb+int64(unsafe.Sizeof(Structs.FilesBlocks{}))*32*bb, 0)
-	var binFolderTmp bytes.Buffer
-	binary.Write(&binFolderTmp, binary.BigEndian, foldertmp)
-	WrittingBytes(file, binFolderTmp.Bytes())
+			file.Seek(spr.S_inode_start+int64(unsafe.Sizeof(Structs.Inodos{}))*(bi+1), 0)
+			var binInodeFile bytes.Buffer
+			binary.Write(&binInodeFile, binary.BigEndian, inodetmp)
+			WrittingBytes(file, binInodeFile.Bytes())
 
-	file.Seek(spr.S_block_start+int64(unsafe.Sizeof(Structs.DirectoriesBlocks{}))*past+int64(unsafe.Sizeof(Structs.FilesBlocks{}))*32*past, 0)
-	var binFolder bytes.Buffer
-	binary.Write(&binFolder, binary.BigEndian, folder)
-	WrittingBytes(file, binFolder.Bytes())
+			file.Seek(spr.S_block_start+int64(unsafe.Sizeof(Structs.DirectoriesBlocks{}))*bb+int64(unsafe.Sizeof(Structs.FilesBlocks{}))*32*bb, 0)
+			var binFolderTmp bytes.Buffer
+			binary.Write(&binFolderTmp, binary.BigEndian, fileBlock)
+			WrittingBytes(file, binFolderTmp.Bytes())
 
-	updateBm(spr, pth, "BI")
-	updateBm(spr, pth, "BB")
+			file.Seek(spr.S_block_start+int64(unsafe.Sizeof(Structs.DirectoriesBlocks{}))*past+int64(unsafe.Sizeof(Structs.FilesBlocks{}))*32*past, 0)
+			var binFile bytes.Buffer
+			binary.Write(&binFile, binary.BigEndian, folder)
+			WrittingBytes(file, binFile.Bytes())
+		} else {
 
-	ruta := ""
-	for i := 0; i < len(copyPath); i++ {
-		ruta += "/" + copyPath[i]
+		}
+
+		updateBm(spr, pth, "BI")
+		updateBm(spr, pth, "BB")
+		ruta := ""
+		for i := 0; i < len(copyPath); i++ {
+			ruta += "/" + copyPath[i]
+		}
+		Message("MKFILE", "Se ha creado el archivo en la ruta "+ruta)
+	} else {
+		file.Seek(spr.S_inode_start+int64(unsafe.Sizeof(Structs.Inodos{}))*bi, 0)
+		var binInodeTmp bytes.Buffer
+		binary.Write(&binInodeTmp, binary.BigEndian, inodetmp)
+		WrittingBytes(file, binInodeTmp.Bytes())
+
+		file.Seek(spr.S_block_start+int64(unsafe.Sizeof(Structs.DirectoriesBlocks{}))*bb+int64(unsafe.Sizeof(Structs.FilesBlocks{}))*32*bb, 0)
+		var binFolderTmp bytes.Buffer
+		binary.Write(&binFolderTmp, binary.BigEndian, foldertmp)
+		WrittingBytes(file, binFolderTmp.Bytes())
+
+		file.Seek(spr.S_block_start+int64(unsafe.Sizeof(Structs.DirectoriesBlocks{}))*past+int64(unsafe.Sizeof(Structs.FilesBlocks{}))*32*past, 0)
+		var binFolder bytes.Buffer
+		binary.Write(&binFolder, binary.BigEndian, folder)
+		WrittingBytes(file, binFolder.Bytes())
+
+		updateBm(spr, pth, "BI")
+		updateBm(spr, pth, "BB")
+
+		ruta := ""
+		for i := 0; i < len(copyPath); i++ {
+			ruta += "/" + copyPath[i]
+		}
+		Message("MKFILE", "Se ha creado el directorio "+ruta)
+		file.Close()
 	}
-	Message("MKDIR", "Se ha creado el directorio "+ruta)
-	file.Close()
 }

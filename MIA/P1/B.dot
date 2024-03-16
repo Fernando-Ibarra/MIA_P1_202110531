@@ -1,0 +1,25 @@
+digraph SuperBloque{
+node [ shape=none fontname=Arial ]
+n1 [ label = <
+<table>
+<tr><td colspan="2" bgcolor="palegreen4">REPORTE DE SuperBloque</td></tr>
+<tr><td bgcolor="white">s_filesystem_type</td><td bgcolor="white">2</td></tr>
+<tr><td bgcolor="palegreen2">s_inodes_count</td><td bgcolor="palegreen2">2544</td></tr>
+<tr><td bgcolor="white">s_blocks_count</td><td bgcolor="white">7632</td></tr>
+<tr><td bgcolor="palegreen2">s_free_inodes_count</td><td bgcolor="palegreen2">2544</td></tr>
+<tr><td bgcolor="white">s_free_blocks_count</td><td bgcolor="white">7632</td></tr>
+<tr><td bgcolor="palegreen2">s_mtime</td><td bgcolor="palegreen2">2024-03-15 19:02</td></tr>
+<tr><td bgcolor="white">s_umtime</td><td bgcolor="white">0</td></tr>
+<tr><td bgcolor="palegreen2">s_mnt_count</td><td bgcolor="palegreen2">1</td></tr>
+<tr><td bgcolor="white">s_magic</td><td bgcolor="white">61267</td></tr>
+<tr><td bgcolor="palegreen2">s_inode_s</td><td bgcolor="palegreen2">216</td></tr>
+<tr><td bgcolor="white">s_block_s</td><td bgcolor="white">96</td></tr>
+<tr><td bgcolor="palegreen2">s_firts_ino</td><td bgcolor="palegreen2">0</td></tr>
+<tr><td bgcolor="white">s_firts_blo</td><td bgcolor="white">0</td></tr>
+<tr><td bgcolor="palegreen2">s_bm_inode_start</td><td bgcolor="palegreen2">408</td></tr>
+<tr><td bgcolor="white">s_bm_block_start</td><td bgcolor="white">2952</td></tr>
+<tr><td bgcolor="palegreen2">s_inode_start</td><td bgcolor="palegreen2">10584</td></tr>
+<tr><td bgcolor="white">s_block_start</td><td bgcolor="white">549912</td></tr>
+</table>
+> ]
+}

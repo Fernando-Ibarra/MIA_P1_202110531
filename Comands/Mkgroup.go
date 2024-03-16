@@ -159,7 +159,7 @@ func mkgrp(n string) {
 	}
 
 	for i := 0; i < len(cadS); i++ {
-		inode.I_block[i] = int64(0)
+		inode.I_block[i] = int64(i)
 	}
 	file.Seek(super.S_inode_start+int64(unsafe.Sizeof(Structs.Inodos{})), 0)
 	var ino bytes.Buffer
@@ -301,7 +301,7 @@ func rmgrp(n string) {
 	}
 
 	for i := 0; i < len(cadS); i++ {
-		inode.I_block[i] = int64(0)
+		inode.I_block[i] = int64(i)
 	}
 	file.Seek(super.S_inode_start+int64(unsafe.Sizeof(Structs.Inodos{})), 0)
 	var ino bytes.Buffer

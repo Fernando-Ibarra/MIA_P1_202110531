@@ -198,7 +198,7 @@ func mkuser(user string, pass string, grp string) {
 		WrittingBytes(file, bin1.Bytes())
 	}
 	for i := 0; i < len(cadenaS); i++ {
-		inode.I_block[i] = int64(0)
+		inode.I_block[i] = int64(i)
 	}
 	file.Seek(super.S_inode_start+int64(unsafe.Sizeof(Structs.Inodos{})), 0)
 	var inodos bytes.Buffer
@@ -342,7 +342,7 @@ func rmuser(user string) {
 		WrittingBytes(file, bin1.Bytes())
 	}
 	for i := 0; i < len(cadenaS); i++ {
-		inode.I_block[i] = int64(0)
+		inode.I_block[i] = int64(i)
 	}
 	file.Seek(super.S_inode_start+int64(unsafe.Sizeof(Structs.Inodos{})), 0)
 	var inodos bytes.Buffer
@@ -504,7 +504,7 @@ func chgrp(user string, grp string) {
 		WrittingBytes(file, bin1.Bytes())
 	}
 	for i := 0; i < len(cadenaS); i++ {
-		inode.I_block[i] = int64(0)
+		inode.I_block[i] = int64(i)
 	}
 	file.Seek(super.S_inode_start+int64(unsafe.Sizeof(Structs.Inodos{})), 0)
 	var inodos bytes.Buffer

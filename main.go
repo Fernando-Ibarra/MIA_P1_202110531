@@ -207,6 +207,16 @@ func functions(token string, tks []string) {
 				partition := Comands.GetMount("MKDIR", Comands.Logged.Id, &p)
 				Comands.DataDir(tks, partition, p)
 			}
+		} else if Comands.Compare(token, "MKFILE") {
+			fmt.Println(">>>>>>>>>>>>>>>>>>>> FUNCIÓN MKFILE <<<<<<<<<<<<<<<<<<<<")
+			if !logued {
+				Comands.Error("MKDIR", "Aún no se ha iniciado sesión")
+				return
+			} else {
+				var p string
+				partition := Comands.GetMount("MKDIR", Comands.Logged.Id, &p)
+				Comands.DataFile(tks, partition, p)
+			}
 		} else if Comands.Compare(token, "REP") {
 			fmt.Println(">>>>>>>>>>>>>>>>>>>> FUNCIÓN REP <<<<<<<<<<<<<<<<<<<<")
 			if !logued {
