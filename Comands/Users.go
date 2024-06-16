@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 	"unsafe"
 )
 
@@ -56,20 +57,20 @@ func DataUser(context []string, action string) {
 
 func mkuser(user string, pass string, grp string) {
 	if !Compare(Logged.User, "root") {
-		Error("MKUSER", "Solo el usuario \"root\" puede acceder a estos comandos")
+		Error("MKUSR", "Solo el usuario \"root\" puede acceder a estos comandos")
 		return
 	}
 
 	var path string
 	partition := GetMount("MKGRP", Logged.Id, &path)
 	if string(partition.Part_status) == "0" {
-		Error("MKUSER", "No se encontró la partición montada con el id: "+Logged.Id)
+		Error("MKUSR", "No se encontró la partición montada con el id: "+Logged.Id)
 		return
 	}
 
 	file, err := os.Open(strings.ReplaceAll(path, "\"", ""))
 	if err != nil {
-		Error("MKUSER", "No se ha encontrado el disco")
+		Error("MKUSR", "No se ha encontrado el disco")
 		return
 	}
 
@@ -79,7 +80,61 @@ func mkuser(user string, pass string, grp string) {
 	buffer := bytes.NewBuffer(data)
 	err_ := binary.Read(buffer, binary.BigEndian, &super)
 	if err_ != nil {
-		Error("MKUSER", "Error al leer el archivo")
+		Error("MKUSR", "Error al leer el archivo")
+		return
+	}
+
+	jour := Structs.NewJournaling()
+	jourW := Structs.NewJournaling()
+	var posJour int64
+	if Compare(strconv.Itoa(int(super.S_filesystem_type)), "3") {
+		for i := 0; i < int(super.S_inodes_count); i++ {
+			file.Seek(partition.Part_start+int64(unsafe.Sizeof(Structs.SuperBlock{}))+int64(unsafe.Sizeof(Structs.Journaling{}))*int64(i), 0)
+			posJour = partition.Part_start + int64(unsafe.Sizeof(Structs.SuperBlock{})) + int64(unsafe.Sizeof(Structs.Journaling{}))*int64(i)
+			data = readBytes(file, int(unsafe.Sizeof(Structs.Journaling{})))
+			buffer = bytes.NewBuffer(data)
+			err_ = binary.Read(buffer, binary.BigEndian, &jour)
+			if err_ != nil {
+				Error("MKUSR", "Error al leer el archivo")
+				return
+			}
+
+			pathJournaling := ""
+			for k := 0; k < len(jour.Path); k++ {
+				if jour.Path[k] != 0 {
+					pathJournaling += string(jour.Path[k])
+				}
+			}
+
+			if Compare(pathJournaling, "-") {
+				contentU := user + " - " + pass
+				dateU := time.Now().String()
+				copy(jourW.Operation[:], "mkusr")
+				copy(jourW.Path[:], "users.txt")
+				copy(jourW.Content[:], contentU)
+				copy(jourW.Date[:], dateU)
+				file.Close()
+
+				file, err = os.OpenFile(strings.ReplaceAll(path, "\"", ""), os.O_WRONLY, os.ModeAppend)
+				if err != nil {
+					Error("MKUSR", "No se ha encontrado el disco")
+					return
+				}
+				file.Seek(posJour, 0)
+				var binJu bytes.Buffer
+				binary.Write(&binJu, binary.BigEndian, jourW)
+				WritingBytes(file, binJu.Bytes())
+				file.Close()
+				break
+			} else {
+				continue
+			}
+		}
+	}
+
+	file, err = os.Open(strings.ReplaceAll(path, "\"", ""))
+	if err != nil {
+		Error("MKUSR", "No se ha encontrado el disco")
 		return
 	}
 
@@ -186,7 +241,7 @@ func mkuser(user string, pass string, grp string) {
 			file.Seek(super.S_block_start+int64(unsafe.Sizeof(Structs.DirectoriesBlocks{}))+int64(unsafe.Sizeof(Structs.FilesBlocks{}))*int64(i), 0)
 			var binAux bytes.Buffer
 			binary.Write(&binAux, binary.BigEndian, fbAux)
-			WrittingBytes(file, binAux.Bytes())
+			WritingBytes(file, binAux.Bytes())
 		} else {
 			fbAux = fb
 		}
@@ -195,7 +250,7 @@ func mkuser(user string, pass string, grp string) {
 		file.Seek(super.S_block_start+int64(unsafe.Sizeof(Structs.DirectoriesBlocks{}))+int64(unsafe.Sizeof(Structs.FilesBlocks{}))*int64(i), 0)
 		var bin1 bytes.Buffer
 		binary.Write(&bin1, binary.BigEndian, fbAux)
-		WrittingBytes(file, bin1.Bytes())
+		WritingBytes(file, bin1.Bytes())
 	}
 	for i := 0; i < len(cadenaS); i++ {
 		inode.I_block[i] = int64(i)
@@ -203,7 +258,7 @@ func mkuser(user string, pass string, grp string) {
 	file.Seek(super.S_inode_start+int64(unsafe.Sizeof(Structs.Inodos{})), 0)
 	var inodos bytes.Buffer
 	binary.Write(&inodos, binary.BigEndian, inode)
-	WrittingBytes(file, inodos.Bytes())
+	WritingBytes(file, inodos.Bytes())
 
 	Message("MKUSER", "Usuario "+user+", creado correctamente")
 	file.Close()
@@ -211,20 +266,20 @@ func mkuser(user string, pass string, grp string) {
 
 func rmuser(user string) {
 	if !Compare(Logged.User, "root") {
-		Error("RMUSER", "Solo el usuario \"root\" puede acceder a estos comandos")
+		Error("RMUSR", "Solo el usuario \"root\" puede acceder a estos comandos")
 		return
 	}
 
 	var path string
 	partition := GetMount("MKGRP", Logged.Id, &path)
 	if string(partition.Part_status) == "0" {
-		Error("RMUSER", "No se encontró la partición montada con el id: "+Logged.Id)
+		Error("RMUSR", "No se encontró la partición montada con el id: "+Logged.Id)
 		return
 	}
 
 	file, err := os.Open(strings.ReplaceAll(path, "\"", ""))
 	if err != nil {
-		Error("RMUSER", "No se ha encontrado el disco")
+		Error("RMUSR", "No se ha encontrado el disco")
 		return
 	}
 
@@ -234,7 +289,61 @@ func rmuser(user string) {
 	buffer := bytes.NewBuffer(data)
 	err_ := binary.Read(buffer, binary.BigEndian, &super)
 	if err_ != nil {
-		Error("RMUSER", "Error al leer el archivo")
+		Error("RMUSR", "Error al leer el archivo")
+		return
+	}
+
+	jour := Structs.NewJournaling()
+	jourW := Structs.NewJournaling()
+	var posJour int64
+	if Compare(strconv.Itoa(int(super.S_filesystem_type)), "3") {
+		for i := 0; i < int(super.S_inodes_count); i++ {
+			file.Seek(partition.Part_start+int64(unsafe.Sizeof(Structs.SuperBlock{}))+int64(unsafe.Sizeof(Structs.Journaling{}))*int64(i), 0)
+			posJour = partition.Part_start + int64(unsafe.Sizeof(Structs.SuperBlock{})) + int64(unsafe.Sizeof(Structs.Journaling{}))*int64(i)
+			data = readBytes(file, int(unsafe.Sizeof(Structs.Journaling{})))
+			buffer = bytes.NewBuffer(data)
+			err_ = binary.Read(buffer, binary.BigEndian, &jour)
+			if err_ != nil {
+				Error("RMUSR", "Error al leer el archivo")
+				return
+			}
+
+			pathJournaling := ""
+			for k := 0; k < len(jour.Path); k++ {
+				if jour.Path[k] != 0 {
+					pathJournaling += string(jour.Path[k])
+				}
+			}
+
+			if Compare(pathJournaling, "-") {
+				contentU := user
+				dateU := time.Now().String()
+				copy(jourW.Operation[:], "mkusr")
+				copy(jourW.Path[:], "users.txt")
+				copy(jourW.Content[:], contentU)
+				copy(jourW.Date[:], dateU)
+				file.Close()
+
+				file, err = os.OpenFile(strings.ReplaceAll(path, "\"", ""), os.O_WRONLY, os.ModeAppend)
+				if err != nil {
+					Error("RMUSR", "No se ha encontrado el disco")
+					return
+				}
+				file.Seek(posJour, 0)
+				var binJu bytes.Buffer
+				binary.Write(&binJu, binary.BigEndian, jourW)
+				WritingBytes(file, binJu.Bytes())
+				file.Close()
+				break
+			} else {
+				continue
+			}
+		}
+	}
+
+	file, err = os.Open(strings.ReplaceAll(path, "\"", ""))
+	if err != nil {
+		Error("MKGRP", "No se ha encontrado el disco")
 		return
 	}
 
@@ -330,7 +439,7 @@ func rmuser(user string) {
 			file.Seek(super.S_block_start+int64(unsafe.Sizeof(Structs.DirectoriesBlocks{}))+int64(unsafe.Sizeof(Structs.FilesBlocks{}))*int64(i), 0)
 			var binAux bytes.Buffer
 			binary.Write(&binAux, binary.BigEndian, fbAux)
-			WrittingBytes(file, binAux.Bytes())
+			WritingBytes(file, binAux.Bytes())
 		} else {
 			fbAux = fb
 		}
@@ -339,7 +448,7 @@ func rmuser(user string) {
 		file.Seek(super.S_block_start+int64(unsafe.Sizeof(Structs.DirectoriesBlocks{}))+int64(unsafe.Sizeof(Structs.FilesBlocks{}))*int64(i), 0)
 		var bin1 bytes.Buffer
 		binary.Write(&bin1, binary.BigEndian, fbAux)
-		WrittingBytes(file, bin1.Bytes())
+		WritingBytes(file, bin1.Bytes())
 	}
 	for i := 0; i < len(cadenaS); i++ {
 		inode.I_block[i] = int64(i)
@@ -347,7 +456,7 @@ func rmuser(user string) {
 	file.Seek(super.S_inode_start+int64(unsafe.Sizeof(Structs.Inodos{})), 0)
 	var inodos bytes.Buffer
 	binary.Write(&inodos, binary.BigEndian, inode)
-	WrittingBytes(file, inodos.Bytes())
+	WritingBytes(file, inodos.Bytes())
 
 	Message("RMUSER", "Usuario "+user+", eliminado correctamente")
 	file.Close()
@@ -379,6 +488,62 @@ func chgrp(user string, grp string) {
 	err_ := binary.Read(buffer, binary.BigEndian, &super)
 	if err_ != nil {
 		Error("CHGRP", "Error al leer el archivo")
+		return
+	}
+
+	jour := Structs.NewJournaling()
+	jourW := Structs.NewJournaling()
+	var posJour int64
+	if Compare(strconv.Itoa(int(super.S_filesystem_type)), "3") {
+		for i := 0; i < int(super.S_inodes_count); i++ {
+			file.Seek(partition.Part_start+int64(unsafe.Sizeof(Structs.SuperBlock{}))+int64(unsafe.Sizeof(Structs.Journaling{}))*int64(i), 0)
+			posJour = partition.Part_start + int64(unsafe.Sizeof(Structs.SuperBlock{})) + int64(unsafe.Sizeof(Structs.Journaling{}))*int64(i)
+			data = readBytes(file, int(unsafe.Sizeof(Structs.Journaling{})))
+			buffer = bytes.NewBuffer(data)
+			err_ = binary.Read(buffer, binary.BigEndian, &jour)
+			if err_ != nil {
+				Error("CHGRP", "Error al leer el archivo")
+				return
+			}
+
+			pathJournaling := ""
+			for k := 0; k < len(jour.Path); k++ {
+				if jour.Path[k] != 0 {
+					pathJournaling += string(jour.Path[k])
+				}
+			}
+
+			if Compare(pathJournaling, "-") {
+				operation := "chgrp"
+				pathU := "users.txt"
+				contentU := grp
+				dateU := time.Now().String()
+				copy(jourW.Operation[:], operation)
+				copy(jourW.Path[:], pathU)
+				copy(jourW.Content[:], contentU)
+				copy(jourW.Date[:], dateU)
+				file.Close()
+
+				file, err = os.OpenFile(strings.ReplaceAll(path, "\"", ""), os.O_WRONLY, os.ModeAppend)
+				if err != nil {
+					Error("CHGRP", "No se ha encontrado el disco")
+					return
+				}
+				file.Seek(posJour, 0)
+				var binJu bytes.Buffer
+				binary.Write(&binJu, binary.BigEndian, jourW)
+				WritingBytes(file, binJu.Bytes())
+				file.Close()
+				break
+			} else {
+				continue
+			}
+		}
+	}
+
+	file, err = os.Open(strings.ReplaceAll(path, "\"", ""))
+	if err != nil {
+		Error("CHGRP", "No se ha encontrado el disco")
 		return
 	}
 
@@ -492,7 +657,7 @@ func chgrp(user string, grp string) {
 			file.Seek(super.S_block_start+int64(unsafe.Sizeof(Structs.DirectoriesBlocks{}))+int64(unsafe.Sizeof(Structs.FilesBlocks{}))*int64(i), 0)
 			var binAux bytes.Buffer
 			binary.Write(&binAux, binary.BigEndian, fbAux)
-			WrittingBytes(file, binAux.Bytes())
+			WritingBytes(file, binAux.Bytes())
 		} else {
 			fbAux = fb
 		}
@@ -501,7 +666,7 @@ func chgrp(user string, grp string) {
 		file.Seek(super.S_block_start+int64(unsafe.Sizeof(Structs.DirectoriesBlocks{}))+int64(unsafe.Sizeof(Structs.FilesBlocks{}))*int64(i), 0)
 		var bin1 bytes.Buffer
 		binary.Write(&bin1, binary.BigEndian, fbAux)
-		WrittingBytes(file, bin1.Bytes())
+		WritingBytes(file, bin1.Bytes())
 	}
 	for i := 0; i < len(cadenaS); i++ {
 		inode.I_block[i] = int64(i)
@@ -509,7 +674,7 @@ func chgrp(user string, grp string) {
 	file.Seek(super.S_inode_start+int64(unsafe.Sizeof(Structs.Inodos{})), 0)
 	var inodos bytes.Buffer
 	binary.Write(&inodos, binary.BigEndian, inode)
-	WrittingBytes(file, inodos.Bytes())
+	WritingBytes(file, inodos.Bytes())
 
 	Message("CHGRP", "Usuario "+user+", se ha cambiado al grupo "+grp+" correctamente")
 	file.Close()

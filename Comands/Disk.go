@@ -13,13 +13,13 @@ import (
 	"time"
 )
 
-func DataMKDISK(tokens []string, counterDisks int) {
+func DataMKDISK(tokens []string, counterDisks int, counterDisksR *int) {
+	*counterDisksR = counterDisks
 	size := ""
 	fit := ""
 	unit := ""
 	currentPath, _ := os.Getwd()
 	path := currentPath + "/MIA/P1/" + string(getNameDisk(counterDisks)) + ".dsk"
-	fmt.Println(path)
 	error_ := false
 	for i := 0; i < len(tokens); i++ {
 		token := tokens[i]
@@ -29,6 +29,8 @@ func DataMKDISK(tokens []string, counterDisks int) {
 				fit = tk[1]
 			} else {
 				Error("MKDISK", "Parametro fit repetido en el comando"+tk[0])
+				counterDisks--
+				*counterDisksR = counterDisks
 				return
 			}
 		} else if Compare(tk[0], "size") {
@@ -36,6 +38,8 @@ func DataMKDISK(tokens []string, counterDisks int) {
 				size = tk[1]
 			} else {
 				Error("MKDISK", "Parametro sizse repetido en el comendo"+tk[0])
+				counterDisks--
+				*counterDisksR = counterDisks
 				return
 			}
 		} else if Compare(tk[0], "unit") {
@@ -43,10 +47,14 @@ func DataMKDISK(tokens []string, counterDisks int) {
 				unit = tk[1]
 			} else {
 				Error("MKDISK", "Parametro unit repetido en el comendo"+tk[0])
+				counterDisks--
+				*counterDisksR = counterDisks
 				return
 			}
 		} else {
 			Error("MKDISK", "No se esperaba el parametro "+tk[0])
+			counterDisks--
+			*counterDisksR = counterDisks
 			error_ = true
 			return
 		}
@@ -138,20 +146,20 @@ func makeFile(s string, f string, u string, path string) {
 	num = num - 1
 	var binario bytes.Buffer
 	binary.Write(&binario, binary.BigEndian, s1)
-	WrittingBytes(file, binario.Bytes())
+	WritingBytes(file, binario.Bytes())
 
 	file.Seek(num, 0)
 
 	var binar2 bytes.Buffer
 	binary.Write(&binar2, binary.BigEndian, s1)
-	WrittingBytes(file, binar2.Bytes())
+	WritingBytes(file, binar2.Bytes())
 
 	file.Seek(0, 0)
 	disk.Mbr_tamano = num + 1
 
 	var binar3 bytes.Buffer
 	binary.Write(&binar3, binary.BigEndian, disk)
-	WrittingBytes(file, binar3.Bytes())
+	WritingBytes(file, binar3.Bytes())
 	file.Close()
 	nameDisk := strings.Split(path, "/")
 	Message("MKDISK", "¡DISCO "+nameDisk[len(nameDisk)-1]+" CREADO EXITOSAMENTE!")

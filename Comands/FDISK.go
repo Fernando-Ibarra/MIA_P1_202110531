@@ -98,10 +98,21 @@ func generatePartition(s string, u string, d string, t string, f string, n strin
 		Error("FDISK", "Fit no contiene los valores esperados")
 	}
 
+	file, err := os.OpenFile(strings.ReplaceAll(d, "\"", ""), os.O_WRONLY, os.ModeAppend)
+	if err != nil {
+		Error("FDISK", "Error al abrir el archivo")
+		return
+	}
+
 	mbr := readDisk(d)
+
+	if int(mbr.Mbr_tamano) < i {
+		Error("FDISK", "EL TAMAÑO DE LA PARTICIÓN ES MAYOR QUE EL TAMAÑO DEL DISCO")
+		return
+	}
+
 	partitions := GetPartitions(*mbr)
 	var between []Transition
-
 	used := 0
 	ext := 0
 	logic := 0
@@ -174,14 +185,14 @@ func generatePartition(s string, u string, d string, t string, f string, n strin
 		return
 	}
 
-	file, err := os.OpenFile(strings.ReplaceAll(d, "\"", ""), os.O_WRONLY, os.ModeAppend)
+	file, err = os.OpenFile(strings.ReplaceAll(d, "\"", ""), os.O_WRONLY, os.ModeAppend)
 	if err != nil {
 		Error("FDISK", "Error al abrir el archivo")
 	}
 	file.Seek(0, 0)
 	var binary2 bytes.Buffer
 	binary.Write(&binary2, binary.BigEndian, mbr)
-	WrittingBytes(file, binary2.Bytes())
+	WritingBytes(file, binary2.Bytes())
 	if Compare(t, "E") {
 		ebr := Structs.NewEBR()
 		ebr.Part_mount = '0'
@@ -192,7 +203,7 @@ func generatePartition(s string, u string, d string, t string, f string, n strin
 		file.Seek(int64(startValue), 0)
 		var binary3 bytes.Buffer
 		binary.Write(&binary3, binary.BigEndian, ebr)
-		WrittingBytes(file, binary3.Bytes())
+		WritingBytes(file, binary3.Bytes())
 		Message("FDISK", "Partición Extendida: "+n+", creada correctamente")
 		return
 	}
@@ -206,6 +217,12 @@ func deletePartition(de string, d string, n string) {
 		return
 	}
 
+	file, err := os.OpenFile(strings.ReplaceAll(d, "\"", ""), os.O_WRONLY, os.ModeAppend)
+	if err != nil {
+		Error("FDISK", "Error al abrir el archivo")
+		return
+	}
+
 	var partitions [4]Structs.Partition
 	mbr := readDisk(d)
 	partitions[0] = mbr.Mbr_partitions_1
@@ -213,9 +230,10 @@ func deletePartition(de string, d string, n string) {
 	partitions[2] = mbr.Mbr_partitions_3
 	partitions[3] = mbr.Mbr_partitions_4
 
-	file, err := os.OpenFile(strings.ReplaceAll(d, "\"", ""), os.O_WRONLY, os.ModeAppend)
+	file, err = os.OpenFile(strings.ReplaceAll(d, "\"", ""), os.O_WRONLY, os.ModeAppend)
 	if err != nil {
 		Error("FDISK", "Error al abrir el archivo")
+		return
 	}
 
 	founded := false
@@ -242,7 +260,7 @@ func deletePartition(de string, d string, n string) {
 					file.Seek(partition.Part_start+int64(j), 0)
 					var binaryZero bytes.Buffer
 					binary.Write(&binaryZero, binary.BigEndian, zero)
-					WrittingBytes(file, binaryZero.Bytes())
+					WritingBytes(file, binaryZero.Bytes())
 				}
 			} else if partition.Part_type == "E"[0] || partition.Part_type == "e"[0] {
 				ext = true
@@ -272,14 +290,14 @@ func deletePartition(de string, d string, n string) {
 					file.Seek(ebr.Part_start, 0)
 					var binaryEbr bytes.Buffer
 					binary.Write(&binaryEbr, binary.BigEndian, newEbr)
-					WrittingBytes(file, binaryEbr.Bytes())
+					WritingBytes(file, binaryEbr.Bytes())
 
 					size := int(ebr.Part_s)
 					for j := 0; j < size; j++ {
 						file.Seek(logicPartitionStart+int64(j), 0)
 						var binaryZero bytes.Buffer
 						binary.Write(&binaryZero, binary.BigEndian, zero)
-						WrittingBytes(file, binaryZero.Bytes())
+						WritingBytes(file, binaryZero.Bytes())
 					}
 					deletedL = false
 					Message("FDISK", "Particion Lógica "+n+", eliminada correctamente")
@@ -322,9 +340,8 @@ func deletePartition(de string, d string, n string) {
 		file.Seek(0, 0)
 		var binary2 bytes.Buffer
 		binary.Write(&binary2, binary.BigEndian, mbr)
-		WrittingBytes(file, binary2.Bytes())
+		WritingBytes(file, binary2.Bytes())
 		Message("FDISK", "Particion "+n+", eliminada correctamente")
-		return
 	}
 }
 
@@ -476,7 +493,7 @@ func Logic(p Structs.Partition, e Structs.Partition, d string, n string) {
 
 			var binary2 bytes.Buffer
 			binary.Write(&binary2, binary.BigEndian, logic)
-			WrittingBytes(file, binary2.Bytes())
+			WritingBytes(file, binary2.Bytes())
 			nameL := ""
 			for j := 0; j < len(p.Part_name); j++ {
 				nameL += string(p.Part_name[j])
@@ -491,7 +508,7 @@ func Logic(p Structs.Partition, e Structs.Partition, d string, n string) {
 
 			var binary3 bytes.Buffer
 			binary.Write(&binary3, binary.BigEndian, addLogic)
-			WrittingBytes(file, binary3.Bytes())
+			WritingBytes(file, binary3.Bytes())
 
 			Message("FDISK", "Partición Lógica: "+n+", creada correctamente")
 			file.Close()

@@ -93,21 +93,21 @@ func ext2(spr Structs.SuperBlock, p Structs.Partition, n int64, path string) {
 	file.Seek(p.Part_start, 0)
 	var binary2 bytes.Buffer
 	binary.Write(&binary2, binary.BigEndian, spr)
-	WrittingBytes(file, binary2.Bytes())
+	WritingBytes(file, binary2.Bytes())
 
 	zero := '0'
 	file.Seek(spr.S_bm_inode_start, 0)
 	for i := 0; i < int(n); i++ {
 		var binaryZero bytes.Buffer
 		binary.Write(&binaryZero, binary.BigEndian, zero)
-		WrittingBytes(file, binaryZero.Bytes())
+		WritingBytes(file, binaryZero.Bytes())
 	}
 
 	file.Seek(spr.S_bm_block_start, 0)
 	for i := 0; i < 3*int(n); i++ {
 		var binaryZero bytes.Buffer
 		binary.Write(&binaryZero, binary.BigEndian, zero)
-		WrittingBytes(file, binaryZero.Bytes())
+		WritingBytes(file, binaryZero.Bytes())
 	}
 
 	inode := Structs.NewInodos()
@@ -124,7 +124,7 @@ func ext2(spr Structs.SuperBlock, p Structs.Partition, n int64, path string) {
 	for i := 0; i < int(n); i++ {
 		var binaryInode bytes.Buffer
 		binary.Write(&binaryInode, binary.BigEndian, inode)
-		WrittingBytes(file, binaryInode.Bytes())
+		WritingBytes(file, binaryInode.Bytes())
 	}
 
 	folder := Structs.NewDirectoriesBlocks()
@@ -137,7 +137,7 @@ func ext2(spr Structs.SuperBlock, p Structs.Partition, n int64, path string) {
 	for i := 0; i < int(n); i++ {
 		var binaryFolder bytes.Buffer
 		binary.Write(&binaryFolder, binary.BigEndian, folder)
-		WrittingBytes(file, binaryFolder.Bytes())
+		WritingBytes(file, binaryFolder.Bytes())
 	}
 	file.Close()
 
@@ -204,34 +204,34 @@ func ext2(spr Structs.SuperBlock, p Structs.Partition, n int64, path string) {
 
 	var bin1 bytes.Buffer
 	binary.Write(&bin1, binary.BigEndian, caracter)
-	WrittingBytes(file, bin1.Bytes())
-	WrittingBytes(file, bin1.Bytes())
+	WritingBytes(file, bin1.Bytes())
+	WritingBytes(file, bin1.Bytes())
 
 	file.Seek(spr.S_bm_block_start, 0)
 	var bin2 bytes.Buffer
 	binary.Write(&bin2, binary.BigEndian, caracter)
-	WrittingBytes(file, bin2.Bytes())
-	WrittingBytes(file, bin1.Bytes())
+	WritingBytes(file, bin2.Bytes())
+	WritingBytes(file, bin1.Bytes())
 
 	file.Seek(spr.S_inode_start, 0)
 	var bin3 bytes.Buffer
 	binary.Write(&bin3, binary.BigEndian, inode)
-	WrittingBytes(file, bin3.Bytes())
+	WritingBytes(file, bin3.Bytes())
 
 	file.Seek(spr.S_inode_start+int64(unsafe.Sizeof(Structs.Inodos{})), 0)
 	var bin4 bytes.Buffer
 	binary.Write(&bin4, binary.BigEndian, inodetmp)
-	WrittingBytes(file, bin4.Bytes())
+	WritingBytes(file, bin4.Bytes())
 
 	file.Seek(spr.S_block_start, 0)
 	var bin5 bytes.Buffer
 	binary.Write(&bin5, binary.BigEndian, fb)
-	WrittingBytes(file, bin5.Bytes())
+	WritingBytes(file, bin5.Bytes())
 
 	file.Seek(spr.S_block_start+int64(unsafe.Sizeof(Structs.DirectoriesBlocks{})), 0)
 	var bin6 bytes.Buffer
 	binary.Write(&bin6, binary.BigEndian, fileb)
-	WrittingBytes(file, bin6.Bytes())
+	WritingBytes(file, bin6.Bytes())
 
 	file.Close()
 
@@ -259,21 +259,29 @@ func ext3(spr Structs.SuperBlock, p Structs.Partition, n int64, path string) {
 	file.Seek(p.Part_start, 0)
 	var binary2 bytes.Buffer
 	binary.Write(&binary2, binary.BigEndian, spr)
-	WrittingBytes(file, binary2.Bytes())
+	WritingBytes(file, binary2.Bytes())
 
 	zero := '0'
 	file.Seek(spr.S_bm_inode_start, 0)
 	for i := 0; i < int(n); i++ {
 		var binaryZero bytes.Buffer
 		binary.Write(&binaryZero, binary.BigEndian, zero)
-		WrittingBytes(file, binaryZero.Bytes())
+		WritingBytes(file, binaryZero.Bytes())
 	}
 
 	file.Seek(spr.S_bm_block_start, 0)
 	for i := 0; i < 3*int(n); i++ {
 		var binaryZero bytes.Buffer
 		binary.Write(&binaryZero, binary.BigEndian, zero)
-		WrittingBytes(file, binaryZero.Bytes())
+		WritingBytes(file, binaryZero.Bytes())
+	}
+
+	jour := Structs.NewJournaling()
+	file.Seek(p.Part_start+int64(unsafe.Sizeof(Structs.SuperBlock{})), 0)
+	for i := 0; i < int(n); i++ {
+		var binaryZero bytes.Buffer
+		binary.Write(&binaryZero, binary.BigEndian, jour)
+		WritingBytes(file, binaryZero.Bytes())
 	}
 
 	inode := Structs.NewInodos()
@@ -290,7 +298,7 @@ func ext3(spr Structs.SuperBlock, p Structs.Partition, n int64, path string) {
 	for i := 0; i < int(n); i++ {
 		var binaryInode bytes.Buffer
 		binary.Write(&binaryInode, binary.BigEndian, inode)
-		WrittingBytes(file, binaryInode.Bytes())
+		WritingBytes(file, binaryInode.Bytes())
 	}
 
 	folder := Structs.NewDirectoriesBlocks()
@@ -303,7 +311,7 @@ func ext3(spr Structs.SuperBlock, p Structs.Partition, n int64, path string) {
 	for i := 0; i < int(n); i++ {
 		var binaryFolder bytes.Buffer
 		binary.Write(&binaryFolder, binary.BigEndian, folder)
-		WrittingBytes(file, binaryFolder.Bytes())
+		WritingBytes(file, binaryFolder.Bytes())
 	}
 	file.Close()
 
@@ -367,49 +375,9 @@ func ext3(spr Structs.SuperBlock, p Structs.Partition, n int64, path string) {
 		Error("MKFS", "No se ha encontrado el disco")
 		return
 	}
-	caracter := '1'
-
-	file.Seek(spr.S_bm_inode_start, 0)
-	var bin1 bytes.Buffer
-	binary.Write(&bin1, binary.BigEndian, caracter)
-	WrittingBytes(file, bin1.Bytes())
-	WrittingBytes(file, bin1.Bytes())
-
-	file.Seek(spr.S_bm_block_start, 0)
-	var bin2 bytes.Buffer
-	binary.Write(&bin2, binary.BigEndian, caracter)
-	WrittingBytes(file, bin2.Bytes())
-	WrittingBytes(file, bin1.Bytes())
-
-	file.Seek(spr.S_inode_start, 0)
-	var bin3 bytes.Buffer
-	binary.Write(&bin3, binary.BigEndian, inode)
-	WrittingBytes(file, bin3.Bytes())
-
-	file.Seek(spr.S_inode_start+int64(unsafe.Sizeof(Structs.Inodos{})), 0)
-	var bin4 bytes.Buffer
-	binary.Write(&bin4, binary.BigEndian, inodetmp)
-	WrittingBytes(file, bin4.Bytes())
-
-	file.Seek(spr.S_block_start, 0)
-	var bin5 bytes.Buffer
-	binary.Write(&bin5, binary.BigEndian, fb)
-	WrittingBytes(file, bin5.Bytes())
-
-	file.Seek(spr.S_block_start+int64(unsafe.Sizeof(Structs.DirectoriesBlocks{})), 0)
-	var bin6 bytes.Buffer
-	binary.Write(&bin6, binary.BigEndian, fileb)
-	WrittingBytes(file, bin6.Bytes())
-
-	partitionName := ""
-	for i := 0; i < len(p.Part_name); i++ {
-		if p.Part_name[i] != 0 {
-			partitionName += string(p.Part_name[i])
-		}
-	}
 
 	journalingR := Structs.NewJournaling()
-	operation := "mkdir"
+	operation := "mkfs"
 	pathR := "/"
 	contentR := "-"
 	dateR := time.Now().String()
@@ -419,8 +387,8 @@ func ext3(spr Structs.SuperBlock, p Structs.Partition, n int64, path string) {
 	copy(journalingR.Date[:], dateR)
 
 	journalingUser := Structs.NewJournaling()
-	operation = "mkfile"
-	pathU := "/users.txt"
+	operation = "mkfs"
+	pathU := "users.txt"
 	contentU := dataFile
 	dateU := time.Now().String()
 	copy(journalingUser.Operation[:], operation)
@@ -428,19 +396,57 @@ func ext3(spr Structs.SuperBlock, p Structs.Partition, n int64, path string) {
 	copy(journalingUser.Content[:], contentU)
 	copy(journalingUser.Date[:], dateU)
 
-	// spr.S_bm_inode_start - (n * int64(unsafe.Sizeof(Structs.Journaling{})))
 	journalingRoot := p.Part_start + int64(unsafe.Sizeof(Structs.SuperBlock{}))
 	file.Seek(journalingRoot, 0)
 	var binJR bytes.Buffer
 	binary.Write(&binJR, binary.BigEndian, journalingR)
-	WrittingBytes(file, binJR.Bytes())
+	WritingBytes(file, binJR.Bytes())
 
-	// spr.S_bm_inode_start - (n * int64(unsafe.Sizeof(Structs.Journaling{}))) + int64(unsafe.Sizeof(Structs.Journaling{}))
 	journalingU := p.Part_start + int64(unsafe.Sizeof(Structs.SuperBlock{})) + int64(unsafe.Sizeof(Structs.Journaling{}))
 	file.Seek(journalingU, 0)
 	var binJu bytes.Buffer
 	binary.Write(&binJu, binary.BigEndian, journalingUser)
-	WrittingBytes(file, binJu.Bytes())
+	WritingBytes(file, binJu.Bytes())
+
+	caracter := '1'
+	file.Seek(spr.S_bm_inode_start, 0)
+	var bin1 bytes.Buffer
+	binary.Write(&bin1, binary.BigEndian, caracter)
+	WritingBytes(file, bin1.Bytes())
+	WritingBytes(file, bin1.Bytes())
+
+	file.Seek(spr.S_bm_block_start, 0)
+	var bin2 bytes.Buffer
+	binary.Write(&bin2, binary.BigEndian, caracter)
+	WritingBytes(file, bin2.Bytes())
+	WritingBytes(file, bin1.Bytes())
+
+	file.Seek(spr.S_inode_start, 0)
+	var bin3 bytes.Buffer
+	binary.Write(&bin3, binary.BigEndian, inode)
+	WritingBytes(file, bin3.Bytes())
+
+	file.Seek(spr.S_inode_start+int64(unsafe.Sizeof(Structs.Inodos{})), 0)
+	var bin4 bytes.Buffer
+	binary.Write(&bin4, binary.BigEndian, inodetmp)
+	WritingBytes(file, bin4.Bytes())
+
+	file.Seek(spr.S_block_start, 0)
+	var bin5 bytes.Buffer
+	binary.Write(&bin5, binary.BigEndian, fb)
+	WritingBytes(file, bin5.Bytes())
+
+	file.Seek(spr.S_block_start+int64(unsafe.Sizeof(Structs.DirectoriesBlocks{})), 0)
+	var bin6 bytes.Buffer
+	binary.Write(&bin6, binary.BigEndian, fileb)
+	WritingBytes(file, bin6.Bytes())
+
+	partitionName := ""
+	for i := 0; i < len(p.Part_name); i++ {
+		if p.Part_name[i] != 0 {
+			partitionName += string(p.Part_name[i])
+		}
+	}
 
 	file.Close()
 	Message("MKFS", "Se ha formateado la partición "+partitionName+" correctamente")

@@ -2,8 +2,10 @@ package Comands
 
 import (
 	"Proyecto1/Structs"
+	"bufio"
 	"bytes"
 	"encoding/binary"
+	"io"
 	"os"
 	"strconv"
 	"strings"
@@ -15,6 +17,7 @@ func DataFile(context []string, partition Structs.Partition, pth string) {
 	rBoolean := false
 	size := ""
 	path := ""
+	cont := ""
 
 	for i := 0; i < len(context); i++ {
 		token := context[i]
@@ -25,27 +28,34 @@ func DataFile(context []string, partition Structs.Partition, pth string) {
 			rBoolean = true
 		} else if Compare(tk[0], "size") {
 			size = tk[1]
+		} else if Compare(tk[0], "cont") {
+			cont = tk[1]
 		}
 	}
-	size = "0"
 	if path == "" {
 		Error("MKFILE", "Se necesitan parametros obligatorios para crear un directorio")
 		return
 	}
+	if cont == "" {
+		cont = ""
+	}
+	if size == "" {
+		size = "0"
+	}
 	tmp := GetPath(path)
-	mkfile(tmp, rBoolean, partition, pth, size)
+	mkfile(tmp, rBoolean, partition, pth, size, cont)
 }
 
-func mkfile(path []string, r bool, partition Structs.Partition, pth string, s string) {
+func mkfile(path []string, r bool, partition Structs.Partition, pth string, s string, cont string) {
 	copyPath := path
 	size, err := strconv.Atoi(s)
 	spr := Structs.NewSuperBlock()
 	inode := Structs.NewInodos()
 	folder := Structs.NewDirectoriesBlocks()
 
-	content := ""
-	for i := 0; i < size; i++ {
-		content += strconv.Itoa(i)
+	if size < 0 {
+		Error("MKFILE", "NO SE PUEDEN CREAR ARCHIVOS DE TAMAÑO NEGATIVO")
+		return
 	}
 
 	file, err := os.Open(strings.ReplaceAll(pth, "\"", ""))
@@ -78,19 +88,18 @@ func mkfile(path []string, r bool, partition Structs.Partition, pth string, s st
 		return
 	}
 
+	counterFilesBlockse := 0
 	var past int64
 	var bi int64
 	var bb int64
 	fnd := false
 	inodetmp := Structs.NewInodos()
 	foldertmp := Structs.NewDirectoriesBlocks()
-
-	inodeFile := Structs.NewInodos()
 	fileBlock := Structs.FilesBlocks{}
 
 	newf = path[len(path)-1]
 	var father int64
-
+	var fatherFileFolder int64
 	var aux []string
 	for i := 0; i < len(path); i++ {
 		aux = append(aux, path[i])
@@ -107,12 +116,12 @@ func mkfile(path []string, r bool, partition Structs.Partition, pth string, s st
 				if inode.I_block[i] != -1 {
 					folder = Structs.NewDirectoriesBlocks()
 					file.Seek(spr.S_block_start+int64(unsafe.Sizeof(Structs.DirectoriesBlocks{}))*inode.I_block[i]+int64(unsafe.Sizeof(Structs.FilesBlocks{}))*32*inode.I_block[i], 0)
-
+					fatherFileFolder = inode.I_block[i]
 					data = readBytes(file, int(unsafe.Sizeof(Structs.DirectoriesBlocks{})))
 					buffer = bytes.NewBuffer(data)
 					err_ = binary.Read(buffer, binary.BigEndian, &folder)
 					if err_ != nil {
-						Error("MKDIR", "Error al leer el archivo")
+						Error("MKFILE", "Error al leer el archivo")
 						return
 					}
 
@@ -129,18 +138,18 @@ func mkfile(path []string, r bool, partition Structs.Partition, pth string, s st
 							fnd = true
 							father = folder.B_content[j].B_inodo
 							inode = Structs.NewInodos()
+							// inodo padre de la carpeta donde esta el archivo
 							file.Seek(spr.S_inode_start+int64(unsafe.Sizeof(Structs.Inodos{}))*folder.B_content[j].B_inodo, 0)
-
 							data = readBytes(file, int(unsafe.Sizeof(Structs.Inodos{})))
 							buffer = bytes.NewBuffer(data)
 							err_ = binary.Read(buffer, binary.BigEndian, &inode)
 							if err_ != nil {
-								Error("MKDIR", "Error al leer el archivo")
+								Error("MKFILE", "Error al leer el archivo")
 								return
 							}
 
 							if inode.I_uid != int64(Logged.Uid) {
-								Error("MKDIR", "No tiene permisos para crear carpetas en este directorio")
+								Error("MKFILE", "No tiene permisos para crear carpetas en este directorio")
 								return
 							}
 
@@ -163,7 +172,7 @@ func mkfile(path []string, r bool, partition Structs.Partition, pth string, s st
 				buffer = bytes.NewBuffer(data)
 				err_ = binary.Read(buffer, binary.BigEndian, &inode)
 				if err_ != nil {
-					Error("MKDIR", "Error al leer el archivo")
+					Error("MKFILE", "Error al leer el archivo")
 					return
 				}
 
@@ -175,7 +184,7 @@ func mkfile(path []string, r bool, partition Structs.Partition, pth string, s st
 					buffer = bytes.NewBuffer(data)
 					err_ = binary.Read(buffer, binary.BigEndian, &inode)
 					if err_ != nil {
-						Error("MKDIR", "Error al leer el archivo")
+						Error("MKFILE", "Error al leer el archivo")
 						return
 					}
 					return
@@ -185,7 +194,7 @@ func mkfile(path []string, r bool, partition Structs.Partition, pth string, s st
 				for i := 0; i < len(path); i++ {
 					address += "/" + path[i]
 				}
-				Error("MKDIR", "No se pudo crear el directorio "+address+", no existen directorios")
+				Error("MKFILE", "No se pudo crear el archivo "+address+", no existen directorios")
 				return
 			}
 		}
@@ -198,12 +207,14 @@ func mkfile(path []string, r bool, partition Structs.Partition, pth string, s st
 		if inode.I_block[i] != -1 {
 			if i < 16 {
 				folderAux := folder
+				// carpeta donde va tendria que estar el archivo
+				fatherFileFolder = inode.I_block[i] // folder aux
 				file.Seek(spr.S_block_start+int64(unsafe.Sizeof(Structs.DirectoriesBlocks{}))*inode.I_block[i]+int64(unsafe.Sizeof(Structs.FilesBlocks{}))*32*inode.I_block[i], 0)
 				data = readBytes(file, int(unsafe.Sizeof(Structs.DirectoriesBlocks{})))
 				buffer = bytes.NewBuffer(data)
 				err_ = binary.Read(buffer, binary.BigEndian, &folder)
 				if err_ != nil {
-					Error("MKDIR", "Error al leer el archivo")
+					Error("MKFILE", "Error al leer el archivo")
 					return
 				}
 				nameAux1 := ""
@@ -235,19 +246,18 @@ func mkfile(path []string, r bool, partition Structs.Partition, pth string, s st
 						past = inode.I_block[i]
 						bi = GetFree(spr, pth, "BI")
 						if bi == -1 {
-							Error("MKDIR", "No se ha podido crear el directorio, el sistema de archivos ha alcanzado su maxima capacidad")
+							Error("MKFILE", "No se ha podido crear el directorio, el sistema de archivos ha alcanzado su maxima capacidad")
 							return
 						}
 						bb = GetFree(spr, pth, "BB")
 						if bb == -1 {
-							Error("MKDIR", "No se ha podido crear el directorio, el sistema de archivos ha alcanzado su maxima capacidad")
+							Error("MKFILE", "No se ha podido crear el directorio, el sistema de archivos ha alcanzado su maxima capacidad")
 							return
 						}
 
 						if strings.Contains(newf, ".") {
 							inodetmp.I_uid = int64(Logged.Uid)
 							inodetmp.I_gid = int64(Logged.Gid)
-							inodetmp.I_s = int64(unsafe.Sizeof(Structs.DirectoriesBlocks{}))
 
 							dateNow := time.Now().String()
 							copy(inodetmp.I_atime[:], spr.S_mtime[:])
@@ -255,26 +265,106 @@ func mkfile(path []string, r bool, partition Structs.Partition, pth string, s st
 							copy(inodetmp.I_mtime[:], dateNow)
 							inodetmp.I_type = 1
 							inodetmp.I_perm = 664
-							inodetmp.I_block[0] = bb
 
 							folder.B_content[j].B_inodo = bi
 							copy(folder.B_content[j].B_name[:], newf)
 
-							inodeFile.I_uid = int64(Logged.Uid)
-							inodeFile.I_gid = int64(Logged.Gid)
-							inodeFile.I_s = int64(unsafe.Sizeof(Structs.DirectoriesBlocks{}))
+							content := ""
+							variableContent := ""
+							if cont != "" {
+								dataFil, errC := os.Open(cont)
+								if errC != nil {
+									Error("MKFILE", "LA RUTA DEL ARCHIVO A LEER NO EXISTE")
+									return
+								}
 
-							dateNow2 := time.Now().String()
-							copy(inodeFile.I_atime[:], spr.S_mtime[:])
-							copy(inodeFile.I_ctime[:], dateNow2)
-							copy(inodeFile.I_mtime[:], dateNow2)
-							inodeFile.I_type = 0
-							inodeFile.I_perm = 664
-							inodeFile.I_block[0] = bb + 2
+								bufferR := bufio.NewReader(dataFil)
+								for {
+									line, errL := bufferR.ReadString('\n')
+									if errL != nil {
+										if errL == io.EOF {
+											break
+										}
+										return
+									}
+									variableContent += line
+								}
+								dataFil.Close()
 
-							fileBlock = Structs.FilesBlocks{}
+								for p := 0; p < size; p++ {
+									content += string(variableContent[p])
+								}
+							} else {
+								internalCounter := 0
+								for d := 0; d < size; d++ {
+									if d%10 == 0 {
+										internalCounter = 0
+										content += strconv.Itoa(internalCounter)
+										internalCounter++
+									} else {
+										content += strconv.Itoa(internalCounter)
+										internalCounter++
+									}
+								}
+							}
 
-							copy(fileBlock.B_content[:], content)
+							inodetmp.I_s = int64(unsafe.Sizeof(Structs.DirectoriesBlocks{})) + int64(len(content))
+
+							tam := len(content)
+							var filesBlocks []string
+							if tam > 10 {
+								for tam >= 10 {
+									auxFiles := ""
+									for m := 0; m <= 10; m++ {
+										auxFiles += string(content[m])
+									}
+									filesBlocks = append(filesBlocks, auxFiles)
+									content = strings.ReplaceAll(content, auxFiles, "")
+									tam = len(content)
+								}
+								if tam <= 10 && tam != 0 {
+									filesBlocks = append(filesBlocks, content)
+								}
+							} else {
+								filesBlocks = append(filesBlocks, content)
+							}
+
+							if len(filesBlocks) > 16 {
+								Error("MKFILE", "SE HA LLEGADO A LA MÁXIMA CAPACIDAD DE APUNDODORES DEL INODO PADRE")
+								return
+							}
+							file.Close()
+
+							file, err = os.OpenFile(strings.ReplaceAll(pth, "\"", ""), os.O_WRONLY, os.ModeAppend)
+							if err != nil {
+								Error("MKFILE", "No se ha encontrado el disco")
+								return
+							}
+
+							for w := 0; w < len(filesBlocks); w++ {
+								var control int
+								control = int(bb) + w
+								var fbAux Structs.FilesBlocks
+								if inode.I_block[w] == -1 {
+									file.Seek(spr.S_block_start+int64(unsafe.Sizeof(Structs.DirectoriesBlocks{}))+int64(unsafe.Sizeof(Structs.FilesBlocks{}))*int64(control), 0)
+									var binAux bytes.Buffer
+									binary.Write(&binAux, binary.BigEndian, fbAux)
+									WritingBytes(file, binAux.Bytes())
+								} else {
+									fbAux = fileBlock
+								}
+
+								copy(fbAux.B_content[:], filesBlocks[w])
+								file.Seek(spr.S_block_start+int64(unsafe.Sizeof(Structs.DirectoriesBlocks{}))+int64(unsafe.Sizeof(Structs.FilesBlocks{}))*int64(control), 0)
+								var bin1 bytes.Buffer
+								binary.Write(&bin1, binary.BigEndian, fbAux)
+								WritingBytes(file, bin1.Bytes())
+								counterFilesBlockse++
+							}
+
+							for w := 0; w < len(filesBlocks); w++ {
+								inodetmp.I_block[w] = bb + int64(w)
+							}
 
 							fileWritten = true
 							fatherSpace = true
@@ -303,6 +393,7 @@ func mkfile(path []string, r bool, partition Structs.Partition, pth string, s st
 
 							folder.B_content[j].B_inodo = bi
 							copy(folder.B_content[j].B_name[:], newf)
+
 							fnd = true
 							i = 20
 							break
@@ -323,75 +414,145 @@ func mkfile(path []string, r bool, partition Structs.Partition, pth string, s st
 				if i < 16 {
 					bi = GetFree(spr, pth, "BI")
 					if bi == -1 {
-						Error("MKDIR", "No se ha podido crear el directorio, el sistema de archivos ha alcanzado su maxima capacidad")
+						Error("MKFILE", "No se ha podido crear el directorio, el sistema de archivos ha alcanzado su maxima capacidad")
 						return
 					}
 					past = GetFree(spr, pth, "BB")
 					if past == -1 {
-						Error("MKDIR", "No se ha podido crear el directorio, el sistema de archivos ha alcanzado su maxima capacidad")
+						Error("MKFILE", "No se ha podido crear el directorio, el sistema de archivos ha alcanzado su maxima capacidad")
 						return
 					}
 
 					bb = GetFree(spr, pth, "BB")
 
 					if strings.Contains(newf, ".") {
-						fileBlock = Structs.FilesBlocks{}
+						// folder previo donde se ingresara el archivo
+						folder = Structs.NewDirectoriesBlocks()
+						copy(folder.B_content[0].B_name[:], ".")
+						folder.B_content[0].B_inodo = bi
+						copy(folder.B_content[1].B_name[:], "..")
+						folder.B_content[1].B_inodo = father
+						folder.B_content[2].B_inodo = bi
+						copy(folder.B_content[2].B_name[:], newf)
+						copy(folder.B_content[3].B_name[:], "-")
+
+						inodetmp.I_uid = int64(Logged.Uid)
+						inodetmp.I_gid = int64(Logged.Gid)
+
+						dateNow := time.Now().String()
+						copy(inodetmp.I_atime[:], spr.S_mtime[:])
+						copy(inodetmp.I_ctime[:], dateNow)
+						copy(inodetmp.I_mtime[:], dateNow)
+						inodetmp.I_type = 1
+						inodetmp.I_perm = 664
+
+						// ARCHIVO MAYOR A 10 CARACTERES
+						content := ""
+						variableContent := ""
+						if cont != "" {
+							dataFil, errC := os.Open(cont)
+							if errC != nil {
+								Error("MKFILE", "LA RUTA DEL ARCHIVO A LEER NO EXISTE")
+								return
+							}
+
+							bufferR := bufio.NewReader(dataFil)
+							for {
+								line, errL := bufferR.ReadString('\n')
+								if errL != nil {
+									if errL == io.EOF {
+										break
+									}
+									return
+								}
+								variableContent += line
+							}
+							dataFil.Close()
+
+							for p := 0; p < size; p++ {
+								content += string(variableContent[p])
+							}
+						} else {
+							internalCounter := 0
+							for d := 0; d < size; d++ {
+								if d%10 == 0 {
+									internalCounter = 0
+									content += strconv.Itoa(internalCounter)
+									internalCounter++
+								} else {
+									content += strconv.Itoa(internalCounter)
+									internalCounter++
+								}
+							}
+						}
+
+						inodetmp.I_s = int64(unsafe.Sizeof(Structs.DirectoriesBlocks{})) + int64(len(content))
 
 						tam := len(content)
-						var contents []string
+						var filesBlocks []string
 						if tam > 10 {
 							for tam > 10 {
-								auxFile := ""
-								for j := 0; j < 10; j++ {
-									auxFile += string(content[i])
+								auxFiles := ""
+								for m := 0; m < 10; m++ {
+									auxFiles += string(content[m])
 								}
-								contents = append(contents, auxFile)
-								content = strings.ReplaceAll(content, auxFile, "")
+								filesBlocks = append(filesBlocks, auxFiles)
+								content = strings.ReplaceAll(content, auxFiles, "")
 								tam = len(content)
 							}
 							if tam < 10 && tam != 0 {
-								contents = append(contents, content)
+								filesBlocks = append(filesBlocks, content)
 							}
 						} else {
-							contents = append(contents, content)
+							filesBlocks = append(filesBlocks, content)
 						}
 
-						if len(contents) > 16 {
-							Error("MKFILE", "Se ha llenado la cantidad de archivo posibles y no es posible generar más")
+						if len(filesBlocks) > 16 {
+							Error("MKFILE", "SE HA LLEGADO A LA MÁXIMA CAPACIDAD DE APUNDODORES DEL INODO PADRE")
 							return
 						}
 
-						inodeFile.I_uid = int64(Logged.Uid)
-						inodeFile.I_gid = int64(Logged.Gid)
-						inodeFile.I_s = int64(unsafe.Sizeof(Structs.DirectoriesBlocks{}))
-
-						dateNow := time.Now().String()
-						copy(inodeFile.I_atime[:], spr.S_mtime[:])
-						copy(inodeFile.I_ctime[:], dateNow)
-						copy(inodeFile.I_mtime[:], dateNow)
-						inodeFile.I_type = 0
-						inodeFile.I_perm = 664
-						inodeFile.I_block[0] = bb
-
-						if len(contents) > 0 {
-							//
-						}
-						for k := 0; k < len(content); k++ {
-							fileBlock.B_content[k] = content[k]
-						}
-						fileWritten = true
 						file.Close()
-						inode.I_block[i] = past
+
 						file, err = os.OpenFile(strings.ReplaceAll(pth, "\"", ""), os.O_WRONLY, os.ModeAppend)
 						if err != nil {
-							Error("MKDIR", "No se ha encontrado el disco")
+							Error("MKFILE", "No se ha encontrado el disco")
 							return
 						}
+
+						for w := 0; w < len(filesBlocks); w++ {
+							var control int
+							control = int(bb) + w
+							var fbAux Structs.FilesBlocks
+							if inode.I_block[w] == -1 {
+								file.Seek(spr.S_block_start+int64(unsafe.Sizeof(Structs.DirectoriesBlocks{}))+int64(unsafe.Sizeof(Structs.FilesBlocks{}))*int64(control), 0)
+								var binAux bytes.Buffer
+								binary.Write(&binAux, binary.BigEndian, fbAux)
+								WritingBytes(file, binAux.Bytes())
+							} else {
+								fbAux = fileBlock
+							}
+
+							copy(fbAux.B_content[:], filesBlocks[w])
+							file.Seek(spr.S_block_start+int64(unsafe.Sizeof(Structs.DirectoriesBlocks{}))+int64(unsafe.Sizeof(Structs.FilesBlocks{}))*int64(control), 0)
+							var bin1 bytes.Buffer
+							binary.Write(&bin1, binary.BigEndian, fbAux)
+							WritingBytes(file, bin1.Bytes())
+							counterFilesBlockse++
+						}
+
+						for w := 0; w < len(filesBlocks); w++ {
+							inodetmp.I_block[w] = bb + int64(w)
+						}
+						inode.I_block[i] = past
+
 						file.Seek(spr.S_inode_start+int64(unsafe.Sizeof(Structs.Inodos{}))*father, 0)
-						var binInodo bytes.Buffer
-						binary.Write(&binInodo, binary.BigEndian, inode)
-						WrittingBytes(file, binInodo.Bytes())
-						file.Close()
+						var binInode bytes.Buffer
+						binary.Write(&binInode, binary.BigEndian, inode)
+						WritingBytes(file, binInode.Bytes())
+
+						fileWritten = true
+						fatherSpace = false
 						break
 					} else {
 						folder = Structs.NewDirectoriesBlocks()
@@ -411,7 +572,7 @@ func mkfile(path []string, r bool, partition Structs.Partition, pth string, s st
 						copy(inodetmp.I_atime[:], spr.S_mtime[:])
 						copy(inodetmp.I_ctime[:], dateNow)
 						copy(inodetmp.I_mtime[:], dateNow)
-						inodetmp.I_type = 0
+						inodetmp.I_type = 1
 						inodetmp.I_perm = 664
 						inodetmp.I_block[0] = bb
 
@@ -427,13 +588,13 @@ func mkfile(path []string, r bool, partition Structs.Partition, pth string, s st
 						inode.I_block[i] = past
 						file, err = os.OpenFile(strings.ReplaceAll(pth, "\"", ""), os.O_WRONLY, os.ModeAppend)
 						if err != nil {
-							Error("MKDIR", "No se ha encontrado el disco")
+							Error("MKFILE", "No se ha encontrado el disco")
 							return
 						}
 						file.Seek(spr.S_inode_start+int64(unsafe.Sizeof(Structs.Inodos{}))*father, 0)
 						var binInodo bytes.Buffer
 						binary.Write(&binInodo, binary.BigEndian, inode)
-						WrittingBytes(file, binInodo.Bytes())
+						WritingBytes(file, binInodo.Bytes())
 						file.Close()
 						break
 					}
@@ -446,37 +607,49 @@ func mkfile(path []string, r bool, partition Structs.Partition, pth string, s st
 
 	file, err = os.OpenFile(strings.ReplaceAll(pth, "\"", ""), os.O_WRONLY, os.ModeAppend)
 	if err != nil {
-		Error("MKDIR", "No se ha encontrado el disco")
+		Error("MKFILE", "No se ha encontrado el disco")
 		return
 	}
 
 	if fileWritten {
 		if fatherSpace {
-			file.Seek(spr.S_inode_start+int64(unsafe.Sizeof(Structs.Inodos{}))*bi, 0)
-			var binInodeTmp bytes.Buffer
-			binary.Write(&binInodeTmp, binary.BigEndian, inodetmp)
-			WrittingBytes(file, binInodeTmp.Bytes())
-
-			file.Seek(spr.S_inode_start+int64(unsafe.Sizeof(Structs.Inodos{}))*(bi+1), 0)
-			var binInodeFile bytes.Buffer
-			binary.Write(&binInodeFile, binary.BigEndian, inodetmp)
-			WrittingBytes(file, binInodeFile.Bytes())
-
-			file.Seek(spr.S_block_start+int64(unsafe.Sizeof(Structs.DirectoriesBlocks{}))*bb+int64(unsafe.Sizeof(Structs.FilesBlocks{}))*32*bb, 0)
-			var binFolderTmp bytes.Buffer
-			binary.Write(&binFolderTmp, binary.BigEndian, fileBlock)
-			WrittingBytes(file, binFolderTmp.Bytes())
+			file.Seek(spr.S_inode_start+int64(unsafe.Sizeof(Structs.Inodos{}))*fatherFileFolder, 0)
+			var binInode bytes.Buffer
+			binary.Write(&binInode, binary.BigEndian, inode)
+			WritingBytes(file, binInode.Bytes())
 
 			file.Seek(spr.S_block_start+int64(unsafe.Sizeof(Structs.DirectoriesBlocks{}))*past+int64(unsafe.Sizeof(Structs.FilesBlocks{}))*32*past, 0)
 			var binFile bytes.Buffer
 			binary.Write(&binFile, binary.BigEndian, folder)
-			WrittingBytes(file, binFile.Bytes())
-		} else {
+			WritingBytes(file, binFile.Bytes())
 
+			file.Seek(spr.S_inode_start+int64(unsafe.Sizeof(Structs.Inodos{}))*bi, 0)
+			var binInodeFile bytes.Buffer
+			binary.Write(&binInodeFile, binary.BigEndian, inodetmp)
+			WritingBytes(file, binInodeFile.Bytes())
+
+		} else {
+			file.Seek(spr.S_block_start+int64(unsafe.Sizeof(Structs.DirectoriesBlocks{}))*past+int64(unsafe.Sizeof(Structs.FilesBlocks{}))*32*past, 0)
+			var binFile bytes.Buffer
+			binary.Write(&binFile, binary.BigEndian, folder)
+			WritingBytes(file, binFile.Bytes())
+
+			file.Seek(spr.S_inode_start+int64(unsafe.Sizeof(Structs.Inodos{}))*bi, 0)
+			var binInodeFile bytes.Buffer
+			binary.Write(&binInodeFile, binary.BigEndian, inodetmp)
+			WritingBytes(file, binInodeFile.Bytes())
 		}
 
-		updateBm(spr, pth, "BI")
-		updateBm(spr, pth, "BB")
+		if counterFilesBlockse > 0 {
+			updateBm(spr, pth, "BI")
+			for i := 0; i < counterFilesBlockse; i++ {
+				updateBm(spr, pth, "BB")
+			}
+		} else {
+			updateBm(spr, pth, "BI")
+			updateBm(spr, pth, "BB")
+		}
+
 		ruta := ""
 		for i := 0; i < len(copyPath); i++ {
 			ruta += "/" + copyPath[i]
@@ -486,17 +659,17 @@ func mkfile(path []string, r bool, partition Structs.Partition, pth string, s st
 		file.Seek(spr.S_inode_start+int64(unsafe.Sizeof(Structs.Inodos{}))*bi, 0)
 		var binInodeTmp bytes.Buffer
 		binary.Write(&binInodeTmp, binary.BigEndian, inodetmp)
-		WrittingBytes(file, binInodeTmp.Bytes())
+		WritingBytes(file, binInodeTmp.Bytes())
 
 		file.Seek(spr.S_block_start+int64(unsafe.Sizeof(Structs.DirectoriesBlocks{}))*bb+int64(unsafe.Sizeof(Structs.FilesBlocks{}))*32*bb, 0)
 		var binFolderTmp bytes.Buffer
 		binary.Write(&binFolderTmp, binary.BigEndian, foldertmp)
-		WrittingBytes(file, binFolderTmp.Bytes())
+		WritingBytes(file, binFolderTmp.Bytes())
 
 		file.Seek(spr.S_block_start+int64(unsafe.Sizeof(Structs.DirectoriesBlocks{}))*past+int64(unsafe.Sizeof(Structs.FilesBlocks{}))*32*past, 0)
 		var binFolder bytes.Buffer
 		binary.Write(&binFolder, binary.BigEndian, folder)
-		WrittingBytes(file, binFolder.Bytes())
+		WritingBytes(file, binFolder.Bytes())
 
 		updateBm(spr, pth, "BI")
 		updateBm(spr, pth, "BB")

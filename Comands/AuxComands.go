@@ -20,11 +20,14 @@ func Compare(a string, b string) bool {
 }
 
 func Error(op string, message string) {
+	fmt.Println("")
 	fmt.Println("\tERROR: " + op + "\n\tTIPO: " + message)
 }
 
 func Message(op string, message string) {
+	fmt.Println("")
 	fmt.Println("\tCOMANDO: " + op + "\n\tTIPO: " + message)
+	fmt.Println("")
 }
 
 func Confirm(message string) bool {
@@ -44,7 +47,7 @@ func ExistedFile(path string) bool {
 	return true
 }
 
-func WrittingBytes(file *os.File, bytes []byte) {
+func WritingBytes(file *os.File, bytes []byte) {
 	_, err := file.Write(bytes)
 	if err != nil {
 		log.Fatal(err)

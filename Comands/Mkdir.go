@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 	"unsafe"
@@ -49,6 +50,67 @@ func mkdir(path []string, r bool, partition Structs.Partition, pth string) {
 	err_ := binary.Read(buffer, binary.BigEndian, &spr)
 	if err_ != nil {
 		Error("MKDIR", "Error al leer el archivo")
+		return
+	}
+
+	jour := Structs.NewJournaling()
+	jourW := Structs.NewJournaling()
+	var posJour int64
+	if Compare(strconv.Itoa(int(spr.S_filesystem_type)), "3") {
+		rutaFs3 := ""
+		for i := 0; i < len(copyPath); i++ {
+			rutaFs3 += "/" + copyPath[i]
+		}
+
+		for i := 0; i < int(spr.S_inodes_count); i++ {
+			file.Seek(partition.Part_start+int64(unsafe.Sizeof(Structs.SuperBlock{}))+int64(unsafe.Sizeof(Structs.Journaling{}))*int64(i), 0)
+			posJour = partition.Part_start + int64(unsafe.Sizeof(Structs.SuperBlock{})) + int64(unsafe.Sizeof(Structs.Journaling{}))*int64(i)
+			data = readBytes(file, int(unsafe.Sizeof(Structs.Journaling{})))
+			buffer = bytes.NewBuffer(data)
+			err_ = binary.Read(buffer, binary.BigEndian, &jour)
+			if err_ != nil {
+				Error("MKDIR", "Error al leer el archivo")
+				return
+			}
+
+			pathJournaling := ""
+			for k := 0; k < len(jour.Path); k++ {
+				if jour.Path[k] != 0 {
+					pathJournaling += string(jour.Path[k])
+				}
+			}
+
+			if Compare(pathJournaling, "-") {
+				operation := "mkdir"
+				pathU := rutaFs3
+				contentU := "-"
+				dateU := time.Now().String()
+				copy(jourW.Operation[:], operation)
+				copy(jourW.Path[:], pathU)
+				copy(jourW.Content[:], contentU)
+				copy(jourW.Date[:], dateU)
+				file.Close()
+
+				file, err = os.OpenFile(strings.ReplaceAll(pth, "\"", ""), os.O_WRONLY, os.ModeAppend)
+				if err != nil {
+					Error("MKDIR", "No se ha encontrado el disco")
+					return
+				}
+				file.Seek(posJour, 0)
+				var binJu bytes.Buffer
+				binary.Write(&binJu, binary.BigEndian, jourW)
+				WritingBytes(file, binJu.Bytes())
+				file.Close()
+				break
+			} else {
+				continue
+			}
+		}
+	}
+
+	file, err = os.Open(strings.ReplaceAll(pth, "\"", ""))
+	if err != nil {
+		Error("MKDIR", "No se ha encontrado el disco")
 		return
 	}
 
@@ -318,7 +380,7 @@ func mkdir(path []string, r bool, partition Structs.Partition, pth string) {
 					file.Seek(spr.S_inode_start+int64(unsafe.Sizeof(Structs.Inodos{}))*father, 0)
 					var binInodo bytes.Buffer
 					binary.Write(&binInodo, binary.BigEndian, inode)
-					WrittingBytes(file, binInodo.Bytes())
+					WritingBytes(file, binInodo.Bytes())
 					file.Close()
 					break
 				}
@@ -337,17 +399,17 @@ func mkdir(path []string, r bool, partition Structs.Partition, pth string) {
 	file.Seek(spr.S_inode_start+int64(unsafe.Sizeof(Structs.Inodos{}))*bi, 0)
 	var binInodeTmp bytes.Buffer
 	binary.Write(&binInodeTmp, binary.BigEndian, inodetmp)
-	WrittingBytes(file, binInodeTmp.Bytes())
+	WritingBytes(file, binInodeTmp.Bytes())
 
 	file.Seek(spr.S_block_start+int64(unsafe.Sizeof(Structs.DirectoriesBlocks{}))*bb+int64(unsafe.Sizeof(Structs.FilesBlocks{}))*32*bb, 0)
 	var binFolderTmp bytes.Buffer
 	binary.Write(&binFolderTmp, binary.BigEndian, foldertmp)
-	WrittingBytes(file, binFolderTmp.Bytes())
+	WritingBytes(file, binFolderTmp.Bytes())
 
 	file.Seek(spr.S_block_start+int64(unsafe.Sizeof(Structs.DirectoriesBlocks{}))*past+int64(unsafe.Sizeof(Structs.FilesBlocks{}))*32*past, 0)
 	var binFolder bytes.Buffer
 	binary.Write(&binFolder, binary.BigEndian, folder)
-	WrittingBytes(file, binFolder.Bytes())
+	WritingBytes(file, binFolder.Bytes())
 
 	updateBm(spr, pth, "BI")
 	updateBm(spr, pth, "BB")
@@ -396,7 +458,7 @@ func updateBm(spr Structs.SuperBlock, pth string, t string) {
 		for i := 0; i < num+1; i++ {
 			var binaryZero bytes.Buffer
 			binary.Write(&binaryZero, binary.BigEndian, zero)
-			WrittingBytes(file, binaryZero.Bytes())
+			WritingBytes(file, binaryZero.Bytes())
 		}
 		file.Close()
 	} else {
@@ -426,7 +488,7 @@ func updateBm(spr Structs.SuperBlock, pth string, t string) {
 		for i := 0; i < num+1; i++ {
 			var binaryZero bytes.Buffer
 			binary.Write(&binaryZero, binary.BigEndian, zero)
-			WrittingBytes(file, binaryZero.Bytes())
+			WritingBytes(file, binaryZero.Bytes())
 		}
 		file.Close()
 	}
